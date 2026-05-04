@@ -1,0 +1,11 @@
+esp8266_gpio_or_signal,symbol,observed_function,confidence,evidence,caveat
+GPIO0,BOOT,BOOT button / flashing mode,high,forum flashing instructions,strapping pin
+GPIO15,FUNC2 / DISCH_PWM?,FUNC2 button in sheet; forum says global 100 Hz discharge PWM,medium_conflict,sheet + forum,do not drive before tracing
+GPIO16,MUX_S3,74HC4067 select S3,confirmed,working U10 temp mux readout,special ESP8266 pin but OK as output
+GPIO14,MUX_S2,74HC4067 select S2,confirmed,working U10 temp mux readout,
+GPIO12,MUX_S1,74HC4067 select S1,confirmed,working U10 temp mux readout,verify boot conditions
+GPIO13,MUX_S0,74HC4067 select S0,confirmed,working U10 temp mux readout,
+A0,ADC,analog measurement input for U10 temperature mux Z path,confirmed_for_temperature_path,working TC1047 readout,effective full-scale 3.02V
+IC25 P0 pin4,U10_MUX_E,controls U10 74HC4067 E active-low,confirmed,continuity + working readout,restore previous PCF state after read
+GPIO4,I2C_SDA,I2C SDA in working ESPHome config,working_but_verify_by_tracing,I2C scan finds expected devices,
+GPIO5,I2C_SCL,I2C SCL in working ESPHome config,working_but_verify_by_tracing,I2C scan finds expected devices,

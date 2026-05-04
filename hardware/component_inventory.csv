@@ -1,0 +1,14 @@
+qty,pcb_ref,marking,identified_part,function,observed_address_or_signal,confidence,source_note
+1,MCU,ESP-12F,ESP8266 module,main MCU,Wi-Fi GPIO ADC,high,user sheet + board inspection
+1,U10,HC4067,Nexperia 74HC4067PW,temperature sensor mux for TC1047 C1..C16,Y0..Y15 C1..C16; E by IC25 P0; Z to A0,confirmed,PCB tracing + working ESPHome readout
+1,R4,10k,10 kOhm resistor,pull-up for U10 E to VCC,U10 default disabled,confirmed,measured by user
+1,IC25,PCF8574,PCF8574 I/O expander,controls U10 E via pin4/P0,0x27 P0 low enables U10,confirmed_for_U10_P0,PCB tracing + working ESPHome readout
+16,U5 U6 U7 U8 U16 U17 U18 U19 U24 U25 U26 U27 U32 U33 U34 U35,AEWG,Microchip TC1047,linear analog temp sensors per cell,VOUT to U10 Y0..Y15,confirmed_working,PCB refs supplied by user
+5,,HC4067,74HC4067PW,16-channel analog mux/demux,common S0..S3; individual enables still traced,high_part_medium_net,sheet + tracing
+16,,bq24195,TI BQ24195,single-cell charger ICs,0x6B behind TCA9548A,high_part_medium_mapping,I2C probe
+2,,PW548A,TI TCA9548APWR,8-channel I2C switch,0x70 0x71,high,I2C probe
+1,,PCA9685PW,NXP PCA9685PW,16-channel PWM controller,0x4F,high,I2C probe
+2,,B219,TI INA219BIDCNR,current power monitor,0x41 visible,medium_count,I2C probe
+32,O13,683CK 3020,ALLPOWER AP3020,N-MOSFET likely charge/discharge switching,unknown gate map,medium,sheet
+8,,393,ST LM393DT,dual comparator,unknown threshold/status sensing,unknown,medium,sheet
+1,,OLED,OLED display,display,0x3C,high,I2C scan

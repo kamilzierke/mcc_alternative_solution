@@ -1,0 +1,12 @@
+address,decimal,device,variant_context,confidence,notes
+0x20,32,PCF8574/PCF8574A,regular firmware boot log,high,one of regular board expanders
+0x21,33,PCF8574/PCF8574A,regular firmware boot log,high,one of regular board expanders
+0x22,34,PCF8574/PCF8574A,regular firmware boot log,high,one of regular board expanders
+0x23,35,PCF8574/PCF8574A,regular firmware boot log,high,regular board slots 13-16 expander per forum
+0x27,39,PCF8574 IC25,Pro tested board,confirmed,IC25 pin4/P0 controls U10 temperature mux E active-low
+0x3C,60,OLED display,regular + Pro,high,screen blank in ESPHome because no display driver configured
+0x4F,79,PCA9685PW,regular + Pro,high,function still being traced
+0x41,65,INA219B,Pro board,medium,observed as global/non-temperature measurement during tests
+0x6B,107,BQ24195,Pro via TCA9548A,high_part_medium_mapping,16 devices found behind TCA; physical slot mapping unresolved
+0x70,112,TCA9548A,Pro,confirmed,8 downstream channels
+0x71,113,TCA9548A,Pro,confirmed,second 8 downstream channels

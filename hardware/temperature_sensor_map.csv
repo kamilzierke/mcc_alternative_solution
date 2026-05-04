@@ -1,0 +1,3 @@
+cell,temperature_sensor_pcb_ref,mux_ref,mux_input
+C1,U5,U10,Y0
+C2,U6,U10,Y1

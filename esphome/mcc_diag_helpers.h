@@ -1,6 +1,7 @@
 #pragma once
 
 #include "esphome.h"
+#include "esphome/components/web_server_base/web_server_base.h"
 #include <Arduino.h>
 #include <Wire.h>
 #include <math.h>
@@ -28,6 +29,7 @@ static const char *TAG_MUX = "mcc_mux";
 static const char *TAG_PCA = "mcc_pca";
 static const char *TAG_PCF = "mcc_pcf";
 static const char *TAG_TCA = "mcc_tca";
+static const char *TAG_BQWEB = "mcc_bqweb";
 
 struct SlotSnapshot {
   bool bq_ok{false};
@@ -527,6 +529,9 @@ struct BQFullRegs {
   uint8_t r[11]{0};
 };
 
+static AsyncWebServerRequest *pending_bq_web_request = nullptr;
+static bool bq_web_processing = false;
+
 inline void wait_with_yield(uint32_t ms) {
   const uint32_t start = millis();
   while ((uint32_t)(millis() - start) < ms) {
@@ -576,6 +581,116 @@ inline void log_bq_full_line(uint8_t slot0, const SlotSnapshot &s, const BQFullR
            bq_chrg_str(bq.r[8]), (bq.r[8] >> 3) & 1, (bq.r[8] >> 2) & 1, bq.r[8] & 1,
            bq_fault_str(s.reg09b), (s.reg09b >> 7) & 1, (s.reg09b >> 3) & 1,
            s.bus_v, tc1047_temp_c_from_v(s.bus_v), s.shunt_mv, s.a0_raw);
+}
+
+inline void bq_web_print_cell(AsyncResponseStream *response, const char *value) {
+  response->print("<td>");
+  response->print(value);
+  response->print("</td>");
+}
+
+inline void bq_web_print_cell_u8_hex(AsyncResponseStream *response, uint8_t value) {
+  char buf[8];
+  snprintf(buf, sizeof(buf), "0x%02X", value);
+  bq_web_print_cell(response, buf);
+}
+
+inline void bq_web_print_cell_float(AsyncResponseStream *response, float value, uint8_t decimals) {
+  char buf[16];
+  if (isnan(value)) {
+    snprintf(buf, sizeof(buf), "nan");
+  } else {
+    snprintf(buf, sizeof(buf), decimals == 3 ? "%.3f" : "%.2f", value);
+  }
+  bq_web_print_cell(response, buf);
+}
+
+inline void bq_web_print_row(AsyncResponseStream *response, uint8_t slot0, const SlotSnapshot &s, const BQFullRegs &bq) {
+  response->print("<tr>");
+  char buf[20];
+  snprintf(buf, sizeof(buf), "C%02u", slot0 + 1);
+  bq_web_print_cell(response, buf);
+  bq_web_print_cell(response, tca_ref_for_slot(slot0));
+  snprintf(buf, sizeof(buf), "0x%02X/%u", tca_addr_for_slot(slot0), tca_channel_for_slot(slot0));
+  bq_web_print_cell(response, buf);
+  bq_web_print_cell(response, bq.ok ? "YES" : "NO");
+  bq_web_print_cell_u8_hex(response, bq.r[0x00]);
+  bq_web_print_cell_u8_hex(response, bq.r[0x08]);
+  bq_web_print_cell(response, bq.ok ? bq_chrg_str(bq.r[0x08]) : "unavailable");
+  snprintf(buf, sizeof(buf), "%u", (bq.r[0x08] >> 3) & 1);
+  bq_web_print_cell(response, buf);
+  snprintf(buf, sizeof(buf), "%u", (bq.r[0x08] >> 2) & 1);
+  bq_web_print_cell(response, buf);
+  snprintf(buf, sizeof(buf), "%u", bq.r[0x08] & 1);
+  bq_web_print_cell(response, buf);
+  bq_web_print_cell_u8_hex(response, s.reg09b);
+  bq_web_print_cell(response, bq.ok ? bq_fault_str(s.reg09b) : "unavailable");
+  bq_web_print_cell_u8_hex(response, bq.r[0x0A]);
+  bq_web_print_cell_float(response, s.bus_v, 3);
+  bq_web_print_cell_float(response, s.shunt_mv, 2);
+  snprintf(buf, sizeof(buf), "%d", s.a0_raw);
+  bq_web_print_cell(response, buf);
+  response->print("</tr>");
+}
+
+inline void send_bq_table_response(AsyncWebServerRequest *request) {
+  ESP_LOGW(TAG_BQWEB, "Serving /bq: reading all 16 BQ24195 devices.");
+  configure_ina219();
+  auto *response = request->beginResponseStream("text/html");
+  response->print("<table border=\"1\"><tr><th>Slot</th><th>Route</th><th>TCA/ch</th><th>BQ</th><th>REG00</th><th>REG08</th><th>Charge</th><th>DPM</th><th>PG</th><th>VSYS</th><th>REG09</th><th>Fault</th><th>REG0A</th><th>INA Bus V</th><th>Shunt mV</th><th>A0</th></tr>");
+  for (uint8_t slot0 = 0; slot0 < 16; slot0++) {
+    SlotSnapshot s;
+    BQFullRegs bq;
+    capture_slot_full(slot0, s, bq);
+    bq_web_print_row(response, slot0, s, bq);
+    feed();
+  }
+  response->print("</table>");
+  request->send(response);
+  ESP_LOGW(TAG_BQWEB, "Serving /bq complete.");
+}
+
+class BqTableHandler : public AsyncWebHandler {
+ public:
+  bool canHandle(AsyncWebServerRequest *request) const override {
+    return request->method() == HTTP_GET && request->url() == "/bq";
+  }
+
+  void handleRequest(AsyncWebServerRequest *request) override {
+    if (pending_bq_web_request != nullptr || bq_web_processing) {
+      request->send(503, "text/plain", "BQ table busy");
+      return;
+    }
+    pending_bq_web_request = request;
+    esphome::Application::wake_loop_any_context();
+  }
+};
+
+inline void setup_bq_web_handler() {
+  static bool registered = false;
+  static bool reported_missing = false;
+  if (registered) return;
+  auto *base = esphome::web_server_base::global_web_server_base;
+  if (base == nullptr) {
+    if (!reported_missing) {
+      ESP_LOGW(TAG_BQWEB, "Cannot register /bq yet: web_server_base is not available.");
+      reported_missing = true;
+    }
+    return;
+  }
+  base->add_handler(new BqTableHandler());  // NOLINT(cppcoreguidelines-owning-memory)
+  registered = true;
+  ESP_LOGW(TAG_BQWEB, "Registered read-only BQ table endpoint at /bq.");
+}
+
+inline void process_bq_web_request() {
+  setup_bq_web_handler();
+  if (pending_bq_web_request == nullptr || bq_web_processing) return;
+  bq_web_processing = true;
+  AsyncWebServerRequest *request = pending_bq_web_request;
+  pending_bq_web_request = nullptr;
+  send_bq_table_response(request);
+  bq_web_processing = false;
 }
 
 inline void dump_bq_full_all() {

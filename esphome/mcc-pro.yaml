@@ -58,7 +58,8 @@ web_server:
 i2c:
   sda: GPIO4
   scl: GPIO5
-  scan: true
+  # Keep boot light: enable only during hardware bring-up diagnostics.
+  scan: false
   frequency: 50000Hz
   timeout: 1s
 
@@ -67,6 +68,11 @@ globals:
     type: int
     restore_value: false
     initial_value: "0"
+
+  - id: boot_services_ready
+    type: bool
+    restore_value: false
+    initial_value: "false"
 
 script:
   - id: scan_all_tc1047_temperatures
@@ -166,14 +172,36 @@ script:
                    pcf_before, pcf_enable, pcf_restore_ok ? "OK" : "FAIL", adc_full_scale);
 
 interval:
-  - interval: ${tc1047_scan_interval}
-    then:
-      - script.execute: scan_all_tc1047_temperatures
-
-  - interval: 5s
+  - interval: 2s
+    startup_delay: 10s
     then:
       - lambda: |-
-          id(oled_page) = (id(oled_page) + 1) % 3;
+          if (!id(boot_services_ready) && id(mcc_wifi).is_connected() && id(api_server).is_connected()) {
+            id(boot_services_ready) = true;
+            ESP_LOGW("mcc_boot", "WiFi and API are connected; enabling OLED updates and TC1047 scans.");
+          }
+
+  - interval: ${tc1047_scan_interval}
+    startup_delay: 60s
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(boot_services_ready);
+          then:
+            - script.execute: scan_all_tc1047_temperatures
+
+  - interval: 5s
+    startup_delay: 30s
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(boot_services_ready);
+          then:
+            - lambda: |-
+                id(oled_page) = (id(oled_page) + 1) % 3;
+            - component.update: oled_display
 
 sensor:
   - platform: wifi_signal
@@ -451,9 +479,10 @@ font:
 
 display:
   - platform: ssd1306_i2c
+    id: oled_display
     model: "SSD1306 128x64"
     address: 0x3C
-    update_interval: 1s
+    update_interval: never
     lambda: |-
       auto temp_text = [](auto *sensor) -> const char * {
         static char buffers[16][8];

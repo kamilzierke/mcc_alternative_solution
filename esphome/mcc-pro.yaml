@@ -1,6 +1,6 @@
 substitutions:
   device_name: mcc-pro
-  friendly_name: MCC Pro 
+  friendly_name: MCC Pro
   tc1047_adc_full_scale_v: "3.02"
   tc1047_temp_offset_c: "0.0"
   tc1047_scan_interval: "10s"

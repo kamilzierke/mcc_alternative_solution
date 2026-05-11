@@ -347,6 +347,68 @@ text_sensor:
       name: "IP Address"
       entity_category: diagnostic
 
+font:
+  - file:
+      type: gfonts
+      family: Roboto Mono
+    id: oled_font
+    size: 9
+    bpp: 1
+    glyphs:
+      - " !#%()+,-./0123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+display:
+  - platform: ssd1306_i2c
+    model: "SSD1306 128x64"
+    address: 0x3C
+    update_interval: 1s
+    lambda: |-
+      auto temp_text = [](auto &sensor) -> const char * {
+        static char buffers[16][8];
+        static uint8_t index = 0;
+        char *buffer = buffers[index++ % 16];
+        if (sensor.has_state()) {
+          snprintf(buffer, 8, "%4.1fC", sensor.state);
+        } else {
+          snprintf(buffer, 8, "--.-C");
+        }
+        return buffer;
+      };
+
+      it.printf(0, 0, id(oled_font), "MCC Pro");
+      it.printf(106, 0, id(oled_font), "P%d/3", id(oled_page) + 1);
+      it.line(0, 11, 127, 11);
+
+      if (id(oled_page) == 0) {
+        const bool wifi_ok = id(mcc_wifi).is_connected();
+        const bool api_ok = id(api_server).is_connected();
+        const char *ip = (id(mcc_ip_address).has_state() && !id(mcc_ip_address).state.empty())
+                           ? id(mcc_ip_address).state.c_str()
+                           : "no ip";
+
+        it.printf(0, 15, id(oled_font), "WiFi: %s", wifi_ok ? "ok" : "down");
+        it.printf(0, 25, id(oled_font), "IP: %s", ip);
+        if (id(wifi_signal_db).has_state()) {
+          it.printf(0, 35, id(oled_font), "RSSI: %.0f dBm", id(wifi_signal_db).state);
+        } else {
+          it.print(0, 35, id(oled_font), "RSSI: -- dBm");
+        }
+        it.printf(0, 45, id(oled_font), "API: %s", api_ok ? "ok" : "down");
+        it.printf(0, 55, id(oled_font), "Scan: ${tc1047_scan_interval}");
+      } else if (id(oled_page) == 1) {
+        it.print(0, 15, id(oled_font), "Temps C01-C08");
+        it.printf(0, 25, id(oled_font), "C01 %s C02 %s", temp_text(id(c1_tc1047_temperature)), temp_text(id(c2_tc1047_temperature)));
+        it.printf(0, 35, id(oled_font), "C03 %s C04 %s", temp_text(id(c3_tc1047_temperature)), temp_text(id(c4_tc1047_temperature)));
+        it.printf(0, 45, id(oled_font), "C05 %s C06 %s", temp_text(id(c5_tc1047_temperature)), temp_text(id(c6_tc1047_temperature)));
+        it.printf(0, 55, id(oled_font), "C07 %s C08 %s", temp_text(id(c7_tc1047_temperature)), temp_text(id(c8_tc1047_temperature)));
+      } else {
+        it.print(0, 15, id(oled_font), "Temps C09-C16");
+        it.printf(0, 25, id(oled_font), "C09 %s C10 %s", temp_text(id(c9_tc1047_temperature)), temp_text(id(c10_tc1047_temperature)));
+        it.printf(0, 35, id(oled_font), "C11 %s C12 %s", temp_text(id(c11_tc1047_temperature)), temp_text(id(c12_tc1047_temperature)));
+        it.printf(0, 45, id(oled_font), "C13 %s C14 %s", temp_text(id(c13_tc1047_temperature)), temp_text(id(c14_tc1047_temperature)));
+        it.printf(0, 55, id(oled_font), "C15 %s C16 %s", temp_text(id(c15_tc1047_temperature)), temp_text(id(c16_tc1047_temperature)));
+      }
+
 button:
   - platform: restart
     name: "Restart"

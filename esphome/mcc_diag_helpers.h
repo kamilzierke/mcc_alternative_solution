@@ -601,6 +601,17 @@ inline void dump_bq_c16_u38() {
   BQFullRegs bq;
   capture_slot_full(SLOT0_C16, s, bq);
   log_bq_full_line(SLOT0_C16, s, bq, "c16_u38", 0);
+  id(c16_bq_present).publish_state(s.bq_ok ? 1.0f : 0.0f);
+  id(c16_bq_reg08).publish_state(bq.ok ? (float) bq.r[0x08] : NAN);
+  id(c16_bq_reg09).publish_state(bq.ok ? (float) s.reg09b : NAN);
+  id(c16_bq_reg0a).publish_state(bq.ok ? (float) bq.r[0x0A] : NAN);
+  id(c16_bq_dpm_stat).publish_state(bq.ok ? (float) ((bq.r[0x08] >> 3) & 1) : NAN);
+  id(c16_bq_pg_stat).publish_state(bq.ok ? (float) ((bq.r[0x08] >> 2) & 1) : NAN);
+  id(c16_bq_vsys_stat).publish_state(bq.ok ? (float) (bq.r[0x08] & 1) : NAN);
+  id(c16_ina_bus_voltage).publish_state(s.ina_ok ? s.bus_v : NAN);
+  id(c16_ina_shunt_voltage).publish_state(s.ina_ok ? s.shunt_mv : NAN);
+  id(c16_bq_charge_status).publish_state(bq.ok ? bq_chrg_str(bq.r[0x08]) : "unavailable");
+  id(c16_bq_fault_status).publish_state(bq.ok ? bq_fault_str(s.reg09b) : "unavailable");
   disable_tcas();
   ESP_LOGW(TAG_BQFULL, "========== BQ24195 C16 VIA U38 READ-ONLY DUMP END ==========");
 }

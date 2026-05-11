@@ -340,12 +340,102 @@ sensor:
     accuracy_decimals: 1
     update_interval: never
 
+  - platform: template
+    id: c16_bq_present
+    name: "C16 BQ24195 Present"
+    icon: "mdi:chip"
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    update_interval: never
+
+  - platform: template
+    id: c16_bq_reg08
+    name: "C16 BQ24195 REG08"
+    icon: "mdi:counter"
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    update_interval: never
+
+  - platform: template
+    id: c16_bq_reg09
+    name: "C16 BQ24195 REG09"
+    icon: "mdi:counter"
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    update_interval: never
+
+  - platform: template
+    id: c16_bq_reg0a
+    name: "C16 BQ24195 REG0A"
+    icon: "mdi:counter"
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    update_interval: never
+
+  - platform: template
+    id: c16_bq_dpm_stat
+    name: "C16 BQ24195 DPM Status"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    update_interval: never
+
+  - platform: template
+    id: c16_bq_pg_stat
+    name: "C16 BQ24195 Power Good"
+    icon: "mdi:power-plug"
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    update_interval: never
+
+  - platform: template
+    id: c16_bq_vsys_stat
+    name: "C16 BQ24195 VSYS Status"
+    icon: "mdi:power-socket"
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    update_interval: never
+
+  - platform: template
+    id: c16_ina_bus_voltage
+    name: "C16 INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c16_ina_shunt_voltage
+    name: "C16 INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
 text_sensor:
   - platform: wifi_info
     ip_address:
       id: mcc_ip_address
       name: "IP Address"
       entity_category: diagnostic
+
+  - platform: template
+    id: c16_bq_charge_status
+    name: "C16 BQ24195 Charge Status"
+    icon: "mdi:battery-sync"
+    entity_category: diagnostic
+
+  - platform: template
+    id: c16_bq_fault_status
+    name: "C16 BQ24195 Fault Status"
+    icon: "mdi:battery-alert"
+    entity_category: diagnostic
 
 font:
   - file:

@@ -16,9 +16,11 @@ static constexpr uint8_t ADDR_PCF8574 = 0x27;
 static constexpr uint8_t ADDR_OLED    = 0x3C;
 static constexpr uint8_t ADDR_INA219  = 0x41;
 static constexpr uint8_t ADDR_PCA9685 = 0x4F;
-static constexpr uint8_t ADDR_TCA0    = 0x70;
-static constexpr uint8_t ADDR_TCA1    = 0x71;
+static constexpr uint8_t ADDR_TCA0    = 0x70;  // C1..C8 side, exact PCB ref still being traced.
+static constexpr uint8_t ADDR_TCA1    = 0x71;  // U38: A0=5V, A1=GND, A2=GND; C9..C16 side.
 static constexpr uint8_t ADDR_BQ24195 = 0x6B;
+
+static constexpr uint8_t SLOT0_C16 = 15;
 
 static const char *TAG_SNAP = "mcc_snap";
 static const char *TAG_DELTA = "mcc_delta";
@@ -161,11 +163,26 @@ inline void disable_tcas() {
   delay(2);
 }
 
+inline uint8_t tca_addr_for_slot(uint8_t slot0) {
+  return slot0 < 8 ? ADDR_TCA0 : ADDR_TCA1;
+}
+
+inline uint8_t tca_channel_for_slot(uint8_t slot0) {
+  return slot0 & 0x07;
+}
+
+inline uint8_t tca_mask_for_slot(uint8_t slot0) {
+  return (uint8_t) (1U << tca_channel_for_slot(slot0));
+}
+
+inline const char *tca_ref_for_slot(uint8_t slot0) {
+  return slot0 < 8 ? "TCA0_C01_C08" : "U38_C09_C16";
+}
+
 inline bool select_tca_slot(uint8_t slot0) {
   disable_tcas();
-  uint8_t tca = slot0 < 8 ? ADDR_TCA0 : ADDR_TCA1;
-  uint8_t ch = slot0 & 0x07;
-  bool ok = i2c_write_u8(tca, (uint8_t) (1U << ch));
+  uint8_t tca = tca_addr_for_slot(slot0);
+  bool ok = i2c_write_u8(tca, tca_mask_for_slot(slot0));
   delay(4);
   return ok;
 }
@@ -448,9 +465,9 @@ inline void strict_tca_bq_map() {
   ESP_LOGW(TAG_TCA, "baseline disabled: ctrl70=0x%02X ctrl71=0x%02X BQ_present=%u", c70, c71, bq0 ? 1 : 0);
   int count = 0;
   for (uint8_t i = 0; i < 16; i++) {
-    uint8_t tca = i < 8 ? ADDR_TCA0 : ADDR_TCA1;
-    uint8_t ch = i & 7;
-    uint8_t mask = (uint8_t) (1U << ch);
+    uint8_t tca = tca_addr_for_slot(i);
+    uint8_t ch = tca_channel_for_slot(i);
+    uint8_t mask = tca_mask_for_slot(i);
     disable_tcas();
     bool sel = i2c_write_u8(tca, mask);
     delay(4);
@@ -462,8 +479,8 @@ inline void strict_tca_bq_map() {
       count++;
       read_bq_key_regs(s);
     }
-    ESP_LOGI(TAG_TCA, "slot=%02u target_tca=0x%02X ch=%u mask=0x%02X select=%s ctrl70=0x%02X ctrl71=0x%02X BQ=%u r00=0x%02X r08=0x%02X r09b=0x%02X r0A=0x%02X",
-             i + 1, tca, ch, mask, yesno(sel), c70, c71, s.bq_ok ? 1 : 0, s.reg00, s.reg08, s.reg09b, s.reg0a);
+    ESP_LOGI(TAG_TCA, "slot=%02u ref=%s target_tca=0x%02X ch=%u mask=0x%02X select=%s ctrl70=0x%02X ctrl71=0x%02X BQ=%u r00=0x%02X r08=0x%02X r09b=0x%02X r0A=0x%02X",
+             i + 1, tca_ref_for_slot(i), tca, ch, mask, yesno(sel), c70, c71, s.bq_ok ? 1 : 0, s.reg00, s.reg08, s.reg09b, s.reg0a);
     feed();
   }
   disable_tcas();
@@ -523,8 +540,8 @@ inline void capture_slot_full(uint8_t slot0, SlotSnapshot &s, BQFullRegs &bq) {
 
 inline void log_bq_full_line(uint8_t slot0, const SlotSnapshot &s, const BQFullRegs &bq, const char *prefix, uint8_t sample_idx = 0) {
   ESP_LOGI(TAG_BQFULL,
-           "%s sample=%02u slot=%02u TCA=0x%02X ch=%u BQ=%s regs=[%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X] r08=%s DPM=%u PG=%u VSYS=%u r09=%s WD=%u BAT=%u INA_bus=%.3fV tc1047_if_bus=%.1fC shunt=%.2fmV A0=%d",
-           prefix, sample_idx, slot0 + 1, slot0 < 8 ? ADDR_TCA0 : ADDR_TCA1, slot0 & 0x07,
+           "%s sample=%02u slot=%02u ref=%s TCA=0x%02X ch=%u mask=0x%02X BQ=%s regs=[%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X] r08=%s DPM=%u PG=%u VSYS=%u r09=%s WD=%u BAT=%u INA_bus=%.3fV tc1047_if_bus=%.1fC shunt=%.2fmV A0=%d",
+           prefix, sample_idx, slot0 + 1, tca_ref_for_slot(slot0), tca_addr_for_slot(slot0), tca_channel_for_slot(slot0), tca_mask_for_slot(slot0),
            yesno(bq.ok),
            bq.r[0], bq.r[1], bq.r[2], bq.r[3], bq.r[4], bq.r[5], bq.r[6], bq.r[7], bq.r[8], bq.r[9], bq.r[10],
            bq_chrg_str(bq.r[8]), (bq.r[8] >> 3) & 1, (bq.r[8] >> 2) & 1, bq.r[8] & 1,
@@ -544,6 +561,19 @@ inline void dump_bq_full_all() {
     feed();
   }
   ESP_LOGW(TAG_BQFULL, "========== BQ24195 FULL REGISTER DUMP ALL SLOTS END ==========");
+}
+
+inline void dump_bq_c16_u38() {
+  ESP_LOGW(TAG_BQFULL, "========== BQ24195 C16 VIA U38 READ-ONLY DUMP START ==========");
+  ESP_LOGW(TAG_BQFULL, "C16 route: U38 TCA9548APWR addr=0x%02X ch=7 mask=0x80, SC7/SD7 -> C16 BQ24195 at 0x%02X.", ADDR_TCA1, ADDR_BQ24195);
+  ESP_LOGW(TAG_BQFULL, "Read-only for BQ24195; helper writes only TCA channel select and INA219 diagnostic config.");
+  configure_ina219();
+  SlotSnapshot s;
+  BQFullRegs bq;
+  capture_slot_full(SLOT0_C16, s, bq);
+  log_bq_full_line(SLOT0_C16, s, bq, "c16_u38", 0);
+  disable_tcas();
+  ESP_LOGW(TAG_BQFULL, "========== BQ24195 C16 VIA U38 READ-ONLY DUMP END ==========");
 }
 
 inline void trace_one_slot(uint8_t slot0, uint8_t cycles, uint16_t interval_ms) {

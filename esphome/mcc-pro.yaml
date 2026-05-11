@@ -490,49 +490,56 @@ button:
           mccdiag::dump_bq_full_all();
 
   - platform: template
-    name: "Diag 10 Trace Slots 01-08 60s"
+    name: "Diag 10 BQ C16 U38 Dump"
+    icon: "mdi:battery-search"
+    on_press:
+      - lambda: |-
+          mccdiag::dump_bq_c16_u38();
+
+  - platform: template
+    name: "Diag 11 Trace Slots 01-08 60s"
     icon: "mdi:chart-timeline-variant"
     on_press:
       - lambda: |-
           mccdiag::trace_half_slots(0, 8, 12, 5000);
 
   - platform: template
-    name: "Diag 11 Trace Slots 09-16 60s"
+    name: "Diag 12 Trace Slots 09-16 60s"
     icon: "mdi:chart-timeline-variant"
     on_press:
       - lambda: |-
           mccdiag::trace_half_slots(8, 8, 12, 5000);
 
   - platform: template
-    name: "Diag 12 Trace Logical Slot 01 90s"
+    name: "Diag 13 Trace Logical Slot 01 90s"
     icon: "mdi:battery-search"
     on_press:
       - lambda: |-
           mccdiag::trace_one_slot(0, 30, 3000);
 
   - platform: template
-    name: "Diag 13 Trace Logical Slot 02 90s"
+    name: "Diag 14 Trace Logical Slot 02 90s"
     icon: "mdi:battery-search"
     on_press:
       - lambda: |-
           mccdiag::trace_one_slot(1, 30, 3000);
 
   - platform: template
-    name: "Diag 14 Trace Logical Slot 03 90s"
+    name: "Diag 15 Trace Logical Slot 03 90s"
     icon: "mdi:battery-search"
     on_press:
       - lambda: |-
           mccdiag::trace_one_slot(2, 30, 3000);
 
   - platform: template
-    name: "Diag 15 Trace Logical Slot 16 90s"
+    name: "Diag 16 Trace Logical Slot 16 90s"
     icon: "mdi:thermometer-lines"
     on_press:
       - lambda: |-
           mccdiag::trace_one_slot(15, 30, 3000);
 
   - platform: template
-    name: "Diag 16 PCA9685 LED PWM Trace 30s"
+    name: "Diag 17 PCA9685 LED PWM Trace 30s"
     icon: "mdi:led-on"
     on_press:
       - lambda: |-

@@ -363,12 +363,12 @@ display:
     address: 0x3C
     update_interval: 1s
     lambda: |-
-      auto temp_text = [](auto &sensor) -> const char * {
+      auto temp_text = [](auto *sensor) -> const char * {
         static char buffers[16][8];
         static uint8_t index = 0;
         char *buffer = buffers[index++ % 16];
-        if (sensor.has_state()) {
-          snprintf(buffer, 8, "%4.1fC", sensor.state);
+        if (sensor->has_state()) {
+          snprintf(buffer, 8, "%4.1fC", sensor->state);
         } else {
           snprintf(buffer, 8, "--.-C");
         }

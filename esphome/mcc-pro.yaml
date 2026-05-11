@@ -1,38 +1,451 @@
-# MCC Pro ESPHome temperature readout skeleton
-# Full working YAML should keep the same logic:
-# - PCF8574 0x27 P0 low enables U10
-# - GPIO13/12/14/16 select U10 Y0..Y15
-# - A0 is averaged and converted with ADC full-scale 3.02 V
-
 substitutions:
   device_name: mcc-pro
+  friendly_name: MCC Pro 
   tc1047_adc_full_scale_v: "3.02"
+  tc1047_temp_offset_c: "0.0"
+  tc1047_scan_interval: "10s"
+  # Calibration rule:
+  # tc1047_adc_full_scale_v = V_multimeter_at_mux_Z_or_TC1047_VOUT * 1023 / raw_avg
+  # Current value 3.02 comes from: ESPHome 0.8761V vs multimeter 0.801V, after prior 3.30V assumption.
 
 esphome:
   name: ${device_name}
+  friendly_name: ${friendly_name}
+  comment: "MegaCell Charger Pro: sequential TC1047 temperature scan C1..C16 through 74HC4067, enabled by PCF8574 P0. Diagnostics retained."
+  includes:
+    - mcc_diag_helpers.h
+  on_boot:
+    priority: 600
+    then:
+      - lambda: |-
+          mccdiag::init_pins();
+          mccdiag::disable_tcas();
+          ESP_LOGW("mcc_boot", "MCC TC1047 all-slot diagnostic booted. Temp mux enable: PCF8574 P0 LOW. Mux channels Y0..Y15 map to C1..C16. ADC full-scale %.3fV.", ${tc1047_adc_full_scale_v}f);
 
 esp8266:
   board: esp12e
+  restore_from_flash: false
 
 logger:
-  level: DEBUG
-
-api:
-ota:
-  platform: esphome
+  level: INFO
+  baud_rate: 115200
 
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  power_save_mode: none
+  min_auth_mode: WPA2
+
+captive_portal:
+
+api:
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
 
 web_server:
   port: 80
+  version: 3
+  include_internal: true
 
+# I2C observed on MCC Pro ESP8266 board.
+# Expected boot scan: 0x27, 0x3C, 0x41, 0x4F, 0x70, 0x71.
 i2c:
   sda: GPIO4
   scl: GPIO5
   scan: true
   frequency: 50000Hz
+  timeout: 1s
 
-# NOTE: this file is intentionally reduced for repository documentation.
-# Use local tested YAML from the project archive for flashing until this is expanded.
+script:
+  - id: scan_all_tc1047_temperatures
+    mode: single
+    then:
+      - lambda: |-
+          static const char *TAG = "mcc_temp_scan";
+
+          // Temperature mux enable line:
+          // 74HC4067 E pin is active LOW.
+          // E -> PCF8574 IC25 pin 4 = P0.
+          // R4 = 10k pull-up to VCC, therefore default PCF 0xFF keeps mux disabled.
+          uint8_t pcf_before = 0xFF;
+          bool pcf_read_ok = mccdiag::i2c_read_u8(mccdiag::ADDR_PCF8574, pcf_before);
+          if (!pcf_read_ok) {
+            ESP_LOGE(TAG, "PCF8574 0x27 read failed; cannot enable TC1047 mux");
+            return;
+          }
+
+          uint8_t pcf_enable = pcf_before & 0xFE;  // P0 LOW, preserve P1..P7.
+          bool pcf_enable_ok = mccdiag::i2c_write_u8(mccdiag::ADDR_PCF8574, pcf_enable);
+          if (!pcf_enable_ok) {
+            ESP_LOGE(TAG, "PCF8574 write enable failed: before=0x%02X enable=0x%02X", pcf_before, pcf_enable);
+            return;
+          }
+
+          delay(10);
+
+          float temps[16];
+          float volts[16];
+          float raws[16];
+          uint16_t mins[16];
+          uint16_t maxs[16];
+
+          constexpr uint8_t samples = 32;
+          const float adc_full_scale = ${tc1047_adc_full_scale_v}f;
+          const float temp_offset = ${tc1047_temp_offset_c}f;
+
+          for (uint8_t ch = 0; ch < 16; ch++) {
+            // Mapping confirmed for C8 and inferred linearly for the same mux:
+            // C1-Y0, C2-Y1, ..., C8-Y7, ..., C16-Y15.
+            mccdiag::mux_select(ch);
+            delay(25);
+
+            uint16_t min_raw = 1023;
+            uint16_t max_raw = 0;
+            uint32_t sum_raw = 0;
+
+            for (uint8_t i = 0; i < samples; i++) {
+              uint16_t raw = analogRead(A0);
+              sum_raw += raw;
+              if (raw < min_raw) min_raw = raw;
+              if (raw > max_raw) max_raw = raw;
+              delay(4);
+              yield();
+            }
+
+            float raw_avg = (float) sum_raw / (float) samples;
+            float voltage = raw_avg * (adc_full_scale / 1023.0f);
+            float temp_c = ((voltage - 0.500f) * 100.0f) + temp_offset;
+
+            temps[ch] = temp_c;
+            volts[ch] = voltage;
+            raws[ch] = raw_avg;
+            mins[ch] = min_raw;
+            maxs[ch] = max_raw;
+
+            ESP_LOGI(TAG,
+                     "C%02u/Y%02u TC1047: raw_avg=%.2f min=%u max=%u voltage=%.4fV temp=%.1fC",
+                     ch + 1, ch, raw_avg, min_raw, max_raw, voltage, temp_c);
+          }
+
+          bool pcf_restore_ok = mccdiag::i2c_write_u8(mccdiag::ADDR_PCF8574, pcf_before);
+          if (!pcf_restore_ok) {
+            ESP_LOGE(TAG, "PCF8574 restore failed: attempted restore=0x%02X", pcf_before);
+          }
+
+          id(c1_tc1047_temperature).publish_state(temps[0]);
+          id(c2_tc1047_temperature).publish_state(temps[1]);
+          id(c3_tc1047_temperature).publish_state(temps[2]);
+          id(c4_tc1047_temperature).publish_state(temps[3]);
+          id(c5_tc1047_temperature).publish_state(temps[4]);
+          id(c6_tc1047_temperature).publish_state(temps[5]);
+          id(c7_tc1047_temperature).publish_state(temps[6]);
+          id(c8_tc1047_temperature).publish_state(temps[7]);
+          id(c9_tc1047_temperature).publish_state(temps[8]);
+          id(c10_tc1047_temperature).publish_state(temps[9]);
+          id(c11_tc1047_temperature).publish_state(temps[10]);
+          id(c12_tc1047_temperature).publish_state(temps[11]);
+          id(c13_tc1047_temperature).publish_state(temps[12]);
+          id(c14_tc1047_temperature).publish_state(temps[13]);
+          id(c15_tc1047_temperature).publish_state(temps[14]);
+          id(c16_tc1047_temperature).publish_state(temps[15]);
+
+          ESP_LOGW(TAG,
+                   "TC1047 scan complete: PCF before=0x%02X enable=0x%02X restore=%s ADC_full_scale=%.3fV mapping C1-Y0..C16-Y15",
+                   pcf_before, pcf_enable, pcf_restore_ok ? "OK" : "FAIL", adc_full_scale);
+
+interval:
+  - interval: ${tc1047_scan_interval}
+    then:
+      - script.execute: scan_all_tc1047_temperatures
+
+sensor:
+  - platform: template
+    id: c1_tc1047_temperature
+    name: "C1 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c2_tc1047_temperature
+    name: "C2 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c3_tc1047_temperature
+    name: "C3 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c4_tc1047_temperature
+    name: "C4 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c5_tc1047_temperature
+    name: "C5 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c6_tc1047_temperature
+    name: "C6 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c7_tc1047_temperature
+    name: "C7 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c8_tc1047_temperature
+    name: "C8 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c9_tc1047_temperature
+    name: "C9 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c10_tc1047_temperature
+    name: "C10 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c11_tc1047_temperature
+    name: "C11 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c12_tc1047_temperature
+    name: "C12 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c13_tc1047_temperature
+    name: "C13 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c14_tc1047_temperature
+    name: "C14 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c15_tc1047_temperature
+    name: "C15 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c16_tc1047_temperature
+    name: "C16 TC1047 Temperature"
+    icon: "mdi:thermometer"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: never
+
+button:
+  - platform: restart
+    name: "Restart"
+
+  - platform: template
+    name: "Read All TC1047 Temperatures Now"
+    icon: "mdi:thermometer-lines"
+    on_press:
+      - script.execute: scan_all_tc1047_temperatures
+
+  - platform: template
+    name: "Diag 00 Set Baseline Snapshot"
+    icon: "mdi:camera-plus"
+    on_press:
+      - lambda: |-
+          mccdiag::set_baseline();
+
+  - platform: template
+    name: "Diag 01 Compare Against Baseline"
+    icon: "mdi:compare-horizontal"
+    on_press:
+      - lambda: |-
+          mccdiag::compare_to_baseline();
+
+  - platform: template
+    name: "Diag 02 Snapshot All Slots"
+    icon: "mdi:camera"
+    on_press:
+      - lambda: |-
+          mccdiag::snapshot_all();
+
+  - platform: template
+    name: "Diag 03 Snapshot Slots 01-08"
+    icon: "mdi:numeric-8-box-outline"
+    on_press:
+      - lambda: |-
+          mccdiag::snapshot_half(0, 8);
+
+  - platform: template
+    name: "Diag 04 Snapshot Slots 09-16"
+    icon: "mdi:numeric-9-plus-box-outline"
+    on_press:
+      - lambda: |-
+          mccdiag::snapshot_half(8, 8);
+
+  - platform: template
+    name: "Diag 05 MUX A0 Scan"
+    icon: "mdi:transit-connection-horizontal"
+    on_press:
+      - lambda: |-
+          mccdiag::mux_adc_scan();
+
+  - platform: template
+    name: "Diag 06 PCA9685 Dump"
+    icon: "mdi:led-strip-variant"
+    on_press:
+      - lambda: |-
+          mccdiag::dump_pca();
+
+  - platform: template
+    name: "Diag 07 PCF8574 Read"
+    icon: "mdi:chip"
+    on_press:
+      - lambda: |-
+          mccdiag::dump_pcf();
+
+  - platform: template
+    name: "Diag 08 Strict TCA BQ Map"
+    icon: "mdi:map-marker-path"
+    on_press:
+      - lambda: |-
+          mccdiag::strict_tca_bq_map();
+
+  - platform: template
+    name: "Diag 09 BQ Full Register Dump All Slots"
+    icon: "mdi:format-list-bulleted-square"
+    on_press:
+      - lambda: |-
+          mccdiag::dump_bq_full_all();
+
+  - platform: template
+    name: "Diag 10 Trace Slots 01-08 60s"
+    icon: "mdi:chart-timeline-variant"
+    on_press:
+      - lambda: |-
+          mccdiag::trace_half_slots(0, 8, 12, 5000);
+
+  - platform: template
+    name: "Diag 11 Trace Slots 09-16 60s"
+    icon: "mdi:chart-timeline-variant"
+    on_press:
+      - lambda: |-
+          mccdiag::trace_half_slots(8, 8, 12, 5000);
+
+  - platform: template
+    name: "Diag 12 Trace Logical Slot 01 90s"
+    icon: "mdi:battery-search"
+    on_press:
+      - lambda: |-
+          mccdiag::trace_one_slot(0, 30, 3000);
+
+  - platform: template
+    name: "Diag 13 Trace Logical Slot 02 90s"
+    icon: "mdi:battery-search"
+    on_press:
+      - lambda: |-
+          mccdiag::trace_one_slot(1, 30, 3000);
+
+  - platform: template
+    name: "Diag 14 Trace Logical Slot 03 90s"
+    icon: "mdi:battery-search"
+    on_press:
+      - lambda: |-
+          mccdiag::trace_one_slot(2, 30, 3000);
+
+  - platform: template
+    name: "Diag 15 Trace Logical Slot 16 90s"
+    icon: "mdi:thermometer-lines"
+    on_press:
+      - lambda: |-
+          mccdiag::trace_one_slot(15, 30, 3000);
+
+  - platform: template
+    name: "Diag 16 PCA9685 LED PWM Trace 30s"
+    icon: "mdi:led-on"
+    on_press:
+      - lambda: |-
+          mccdiag::trace_pca(30, 1000);

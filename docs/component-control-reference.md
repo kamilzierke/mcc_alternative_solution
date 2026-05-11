@@ -18,7 +18,8 @@ Known MCC Pro addresses:
 | --- | --- | --- |
 | `0x27` | PCF8574 / IC25 | 8-bit expander; P0 controls U10 temperature mux enable |
 | `0x3C` | SSD1306 OLED | 128x64 status display |
-| `0x41` | INA219B | current/power monitor candidate |
+| `0x41` | INA219B / U47 | current/power monitor; A0 high, A1 low |
+| `0x45` | INA219B / U34 | current/power monitor; A0 high, A1 high; path/slot association still being traced |
 | `0x4F` | PCA9685PW | 16-channel PWM controller |
 | `0x6B` | BQ24195 | charger IC behind TCA9548A channel switches |
 | `0x70` | TCA9548A | I2C mux for 8 BQ24195 devices |
@@ -286,8 +287,9 @@ Register map:
 
 MCC Pro current diagnostic behavior:
 
-- Observed address: `0x41`.
-- Current helper config writes `0x399F` to configuration register, then reads shunt and bus voltage.
+- U47 address: `0x41` from A0 high and A1 low. This is the current tested ESPHome diagnostic path.
+- U34 address: `0x45` from A0 high and A1 high. Its path/slot association still needs tracing; it may not appear in the boot scan unless the relevant bus path is selected.
+- Current helper config writes `0x399F` to the U47 configuration register, then reads shunt and bus voltage.
 - Without knowing shunt value, current/power values should be treated as uncalibrated.
 
 ## PCA9685PW 16-channel PWM controller

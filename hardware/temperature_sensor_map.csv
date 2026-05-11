@@ -13,5 +13,5 @@ C11,U26,TC1047,U10,Y10,10,IC25 PCF8574 P0 pin4 active-low,R4 10k to VCC,U10 Z to
 C12,U27,TC1047,U10,Y11,11,IC25 PCF8574 P0 pin4 active-low,R4 10k to VCC,U10 Z to ESP8266 A0,confirmed_working
 C13,U32,TC1047,U10,Y12,12,IC25 PCF8574 P0 pin4 active-low,R4 10k to VCC,U10 Z to ESP8266 A0,confirmed_working
 C14,U33,TC1047,U10,Y13,13,IC25 PCF8574 P0 pin4 active-low,R4 10k to VCC,U10 Z to ESP8266 A0,confirmed_working
-C15,U34,TC1047,U10,Y14,14,IC25 PCF8574 P0 pin4 active-low,R4 10k to VCC,U10 Z to ESP8266 A0,confirmed_working
+C15,U34?,TC1047,U10,Y14,14,IC25 PCF8574 P0 pin4 active-low,R4 10k to VCC,U10 Z to ESP8266 A0,confirmed_working_pcb_ref_conflict_user_reports_U34_INA219
 C16,U35,TC1047,U10,Y15,15,IC25 PCF8574 P0 pin4 active-low,R4 10k to VCC,U10 Z to ESP8266 A0,confirmed_working

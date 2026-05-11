@@ -6,7 +6,8 @@ address,decimal,device,variant_context,confidence,notes
 0x27,39,PCF8574 IC25,Pro tested board,confirmed,IC25 pin4/P0 controls U10 temperature mux E active-low
 0x3C,60,OLED display,regular + Pro,high,screen blank in ESPHome because no display driver configured
 0x4F,79,PCA9685PW,regular + Pro,high,function still being traced
-0x41,65,INA219B,Pro board,medium,observed as global/non-temperature measurement during tests
+0x41,65,INA219B U47,Pro board,confirmed_by_pin_trace,U47 A0=5V/high A1=GND/low; current ESPHome diagnostic path
+0x45,69,INA219B U34,Pro board,pin_trace_not_yet_seen_in_boot_scan,U34 A0=5V/high A1=5V/high; path/slot association still being traced
 0x6B,107,BQ24195,Pro via TCA9548A,high_part_medium_mapping,16 devices found behind TCA; physical slot mapping unresolved
 0x70,112,TCA9548A,Pro,confirmed,8 downstream channels; likely C1-C8 side
 0x71,113,TCA9548A U38,Pro,confirmed_for_C16,U38 A0=5V A1=GND A2=GND RESET=5V; SC7/SD7 route to C16 BQ24195; C16 REG08 changed 0x1D empty to 0x2C with cell

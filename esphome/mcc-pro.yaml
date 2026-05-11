@@ -54,6 +54,7 @@ web_server:
 
 # I2C observed on MCC Pro ESP8266 board.
 # Expected boot scan: 0x27, 0x3C, 0x41, 0x4F, 0x70, 0x71.
+# New trace: INA219 U47=0x41; U34=0x45 if visible on the selected bus/path.
 i2c:
   sda: GPIO4
   scl: GPIO5

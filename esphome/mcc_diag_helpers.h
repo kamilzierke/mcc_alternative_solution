@@ -15,7 +15,9 @@ static constexpr uint8_t PIN_MUX_S3 = 16;
 
 static constexpr uint8_t ADDR_PCF8574 = 0x27;
 static constexpr uint8_t ADDR_OLED    = 0x3C;
-static constexpr uint8_t ADDR_INA219  = 0x41;
+static constexpr uint8_t ADDR_INA219_U47 = 0x41;  // U47: A0=HIGH, A1=LOW.
+static constexpr uint8_t ADDR_INA219_U34 = 0x45;  // U34: A0=HIGH, A1=HIGH; slot/path still being traced.
+static constexpr uint8_t ADDR_INA219 = ADDR_INA219_U47;  // Current tested diagnostic path.
 static constexpr uint8_t ADDR_PCA9685 = 0x4F;
 static constexpr uint8_t ADDR_TCA0    = 0x70;  // C1..C8 side, exact PCB ref still being traced.
 static constexpr uint8_t ADDR_TCA1    = 0x71;  // U38: A0=5V, A1=GND, A2=GND; C9..C16 side.

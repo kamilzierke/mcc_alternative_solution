@@ -6,7 +6,7 @@
 - 16 cell slots.
 - Analog mux select lines: GPIO13=S0, GPIO12=S1, GPIO14=S2, GPIO16=S3.
 - I2C bus in current working ESPHome config: GPIO4=SDA, GPIO5=SCL.
-- I2C devices observed on MCC Pro: 0x27 PCF8574, 0x3C OLED, 0x41 INA219, 0x4F PCA9685, 0x70/0x71 TCA9548A.
+- I2C devices observed/identified on MCC Pro: 0x27 PCF8574, 0x3C OLED, 0x41 INA219 U47, 0x45 INA219 U34 by pin trace, 0x4F PCA9685, 0x70/0x71 TCA9548A.
 - 16x BQ24195 found behind TCA9548A channel selection at address 0x6B.
 - Temperature sensors C1..C16 are TC1047 and are fully readable through U10.
 
@@ -25,7 +25,7 @@ ADC effective full-scale for this path: `3.02 V`.
 
 ## Temperature sensor PCB refs
 
-C1=U5, C2=U6, C3=U7, C4=U8, C5=U16, C6=U17, C7=U18, C8=U19, C9=U24, C10=U25, C11=U26, C12=U27, C13=U32, C14=U33, C15=U34, C16=U35.
+C1=U5, C2=U6, C3=U7, C4=U8, C5=U16, C6=U17, C7=U18, C8=U19, C9=U24, C10=U25, C11=U26, C12=U27, C13=U32, C14=U33, C15=U34? (conflicts with later U34 INA219 trace), C16=U35.
 
 ## Known unresolved items
 
@@ -36,6 +36,7 @@ C1=U5, C2=U6, C3=U7, C4=U8, C5=U16, C6=U17, C7=U18, C8=U19, C9=U24, C10=U25, C11
 - MOSFET/AP3020 gate mapping.
 - GPIO15 conflict: FUNC2 button vs discharge PWM.
 - Safe `stop_all_outputs()`.
+- C15 temperature sensor PCB ref: earlier map says U34, but later pin trace identifies U34 as INA219 at 0x45.
 
 ## Safety rule
 

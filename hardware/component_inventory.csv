@@ -12,3 +12,7 @@ qty,pcb_ref,marking,identified_part,function,observed_address_or_signal,confiden
 32,O13,683CK 3020,ALLPOWER AP3020,N-MOSFET likely charge/discharge switching,unknown gate map,medium,sheet
 8,,393,ST LM393DT,dual comparator,unknown threshold/status sensing,unknown,medium,sheet
 1,,OLED,OLED display,display,0x3C,high,I2C scan
+2,,IR4427S 237P H AAOW_,Infineon IR4427SPBF,dual non-inverting MOSFET/IGBT gate driver,likely fan/resistor cooling or power-path drive control,medium,Downloads.zip Megacellcharger Pro sheet
+1,,37CJ N05A,HGSEMI LM1117MP-3.3/TR,3.3 V LDO regulator,3.3 V rail candidate,medium,Downloads.zip Megacellcharger Pro sheet
+2,O9 O10,2Ct 27,"Nexperia BC849C,215",NPN small-signal transistor,30 V 100 mA SOT-23,medium,Downloads.zip Megacellcharger Pro sheet
+1,,A6162y,SHOUDING SD8942,600 kHz 16 V 2 A synchronous buck converter,logic/power rail candidate,medium,Downloads.zip Megacellcharger Pro sheet

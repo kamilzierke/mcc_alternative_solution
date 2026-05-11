@@ -60,6 +60,31 @@ struct FullSnapshot {
 
 static FullSnapshot baseline;
 
+struct BqRoute {
+  uint8_t tca_addr;
+  uint8_t tca_channel;
+  const char *ref;
+};
+
+static constexpr BqRoute BQ_ROUTES[16] = {
+  {ADDR_TCA0, 0, "TCA0_C01_C08"},
+  {ADDR_TCA0, 1, "TCA0_C01_C08"},
+  {ADDR_TCA0, 2, "TCA0_C01_C08"},
+  {ADDR_TCA0, 3, "TCA0_C01_C08"},
+  {ADDR_TCA0, 4, "TCA0_C01_C08"},
+  {ADDR_TCA0, 5, "TCA0_C01_C08"},
+  {ADDR_TCA0, 6, "TCA0_C01_C08"},
+  {ADDR_TCA0, 7, "TCA0_C01_C08"},
+  {ADDR_TCA1, 0, "U38_C09_C16"},
+  {ADDR_TCA1, 1, "U38_C09_C16"},
+  {ADDR_TCA1, 2, "U38_C09_C16"},
+  {ADDR_TCA1, 3, "U38_C09_C16"},
+  {ADDR_TCA1, 4, "U38_C09_C16"},
+  {ADDR_TCA1, 5, "U38_C09_C16"},
+  {ADDR_TCA1, 6, "U38_C09_C16"},
+  {ADDR_TCA1, 7, "U38_C09_C16"},  // Confirmed: U38 SC7/SD7 route to C16 BQ24195.
+};
+
 inline void feed() {
   yield();
 }
@@ -163,12 +188,16 @@ inline void disable_tcas() {
   delay(2);
 }
 
+inline const BqRoute &bq_route_for_slot(uint8_t slot0) {
+  return BQ_ROUTES[slot0 & 0x0F];
+}
+
 inline uint8_t tca_addr_for_slot(uint8_t slot0) {
-  return slot0 < 8 ? ADDR_TCA0 : ADDR_TCA1;
+  return bq_route_for_slot(slot0).tca_addr;
 }
 
 inline uint8_t tca_channel_for_slot(uint8_t slot0) {
-  return slot0 & 0x07;
+  return bq_route_for_slot(slot0).tca_channel;
 }
 
 inline uint8_t tca_mask_for_slot(uint8_t slot0) {
@@ -176,7 +205,7 @@ inline uint8_t tca_mask_for_slot(uint8_t slot0) {
 }
 
 inline const char *tca_ref_for_slot(uint8_t slot0) {
-  return slot0 < 8 ? "TCA0_C01_C08" : "U38_C09_C16";
+  return bq_route_for_slot(slot0).ref;
 }
 
 inline bool select_tca_slot(uint8_t slot0) {

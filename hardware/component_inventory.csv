@@ -6,7 +6,7 @@ qty,pcb_ref,marking,identified_part,function,observed_address_or_signal,confiden
 16,U5 U6 U7 U8 U16 U17 U18 U19 U24 U25 U26 U27 U32 U33 U34 U35,AEWG,Microchip TC1047,linear analog temp sensors per cell,VOUT to U10 Y0..Y15,confirmed_working,PCB refs supplied by user
 5,,HC4067,74HC4067PW,16-channel analog mux/demux,common S0..S3; individual enables still traced,high_part_medium_net,sheet + tracing
 16,,bq24195,TI BQ24195,single-cell charger ICs,0x6B behind TCA9548A,high_part_medium_mapping,I2C probe
-2,,PW548A,TI TCA9548APWR,8-channel I2C switch,0x70 0x71,high,I2C probe
+2,U38 + one untraced,PW548A,TI TCA9548APWR,8-channel I2C switch,U38 0x71 C9..C16; U38 SC7/SD7 to C16 BQ24195; second TCA 0x70 likely C1..C8,high_for_U38_C16,I2C probe + user trace + ESPHome C16 log
 1,,PCA9685PW,NXP PCA9685PW,16-channel PWM controller,0x4F,high,I2C probe
 2,,B219,TI INA219BIDCNR,current power monitor,0x41 visible,medium_count,I2C probe
 32,O13,683CK 3020,ALLPOWER AP3020,N-MOSFET likely charge/discharge switching,unknown gate map,medium,sheet

@@ -185,6 +185,8 @@ MCC Pro use:
 
 - Two devices at `0x70` and `0x71`.
 - Each exposes up to eight downstream BQ24195 devices at repeated address `0x6B`.
+- U38 is confirmed as the `0x71` device: A0 is tied high to 5 V, A1/A2 are tied low, RESET is tied high, and SC7/SD7 route to the C16 BQ24195 clock/data lines.
+- C16 read-only ESPHome diagnostic confirmed BQ presence and cell-state response through U38 channel 7: empty slot logged `REG08=0x1D` and inserted-cell slot logged `REG08=0x2C`.
 
 Safe query pattern:
 

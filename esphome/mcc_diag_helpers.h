@@ -532,6 +532,7 @@ struct BQFullRegs {
 };
 
 static AsyncWebServerRequest *pending_bq_web_request = nullptr;
+static int8_t pending_bq_web_slot0 = -1;
 static bool bq_web_processing = false;
 
 inline void wait_with_yield(uint32_t ms) {
@@ -607,49 +608,73 @@ inline void bq_web_print_cell_float(AsyncResponseStream *response, float value, 
   bq_web_print_cell(response, buf);
 }
 
-inline void bq_web_print_row(AsyncResponseStream *response, uint8_t slot0, const SlotSnapshot &s, const BQFullRegs &bq) {
+inline void bq_web_print_row(AsyncResponseStream *response, uint8_t slot0, const SlotSnapshot *s, const BQFullRegs *bq) {
+  const bool have_data = s != nullptr && bq != nullptr;
   response->print("<tr>");
-  char buf[20];
+  char buf[40];
   snprintf(buf, sizeof(buf), "C%02u", slot0 + 1);
+  bq_web_print_cell(response, buf);
+  snprintf(buf, sizeof(buf), "<a href=\"/bq?slot=%u\">Read</a>", slot0 + 1);
   bq_web_print_cell(response, buf);
   bq_web_print_cell(response, tca_ref_for_slot(slot0));
   snprintf(buf, sizeof(buf), "0x%02X/%u", tca_addr_for_slot(slot0), tca_channel_for_slot(slot0));
   bq_web_print_cell(response, buf);
-  bq_web_print_cell(response, bq.ok ? "YES" : "NO");
-  bq_web_print_cell_u8_hex(response, bq.r[0x00]);
-  bq_web_print_cell_u8_hex(response, bq.r[0x08]);
-  bq_web_print_cell(response, bq.ok ? bq_chrg_str(bq.r[0x08]) : "unavailable");
-  snprintf(buf, sizeof(buf), "%u", (bq.r[0x08] >> 3) & 1);
+  if (!have_data) {
+    for (uint8_t i = 0; i < 13; i++) bq_web_print_cell(response, "-");
+    response->print("</tr>");
+    return;
+  }
+  bq_web_print_cell(response, bq->ok ? "YES" : "NO");
+  bq_web_print_cell_u8_hex(response, bq->r[0x00]);
+  bq_web_print_cell_u8_hex(response, bq->r[0x08]);
+  bq_web_print_cell(response, bq->ok ? bq_chrg_str(bq->r[0x08]) : "unavailable");
+  snprintf(buf, sizeof(buf), "%u", (bq->r[0x08] >> 3) & 1);
   bq_web_print_cell(response, buf);
-  snprintf(buf, sizeof(buf), "%u", (bq.r[0x08] >> 2) & 1);
+  snprintf(buf, sizeof(buf), "%u", (bq->r[0x08] >> 2) & 1);
   bq_web_print_cell(response, buf);
-  snprintf(buf, sizeof(buf), "%u", bq.r[0x08] & 1);
+  snprintf(buf, sizeof(buf), "%u", bq->r[0x08] & 1);
   bq_web_print_cell(response, buf);
-  bq_web_print_cell_u8_hex(response, s.reg09b);
-  bq_web_print_cell(response, bq.ok ? bq_fault_str(s.reg09b) : "unavailable");
-  bq_web_print_cell_u8_hex(response, bq.r[0x0A]);
-  bq_web_print_cell_float(response, s.bus_v, 3);
-  bq_web_print_cell_float(response, s.shunt_mv, 2);
-  snprintf(buf, sizeof(buf), "%d", s.a0_raw);
+  bq_web_print_cell_u8_hex(response, s->reg09b);
+  bq_web_print_cell(response, bq->ok ? bq_fault_str(s->reg09b) : "unavailable");
+  bq_web_print_cell_u8_hex(response, bq->r[0x0A]);
+  bq_web_print_cell_float(response, s->bus_v, 3);
+  bq_web_print_cell_float(response, s->shunt_mv, 2);
+  snprintf(buf, sizeof(buf), "%d", s->a0_raw);
   bq_web_print_cell(response, buf);
   response->print("</tr>");
 }
 
-inline void send_bq_table_response(AsyncWebServerRequest *request) {
-  ESP_LOGW(TAG_BQWEB, "Serving /bq: reading all 16 BQ24195 devices.");
-  configure_ina219();
+inline void send_bq_table_response(AsyncWebServerRequest *request, int8_t selected_slot0) {
+  SlotSnapshot selected_s;
+  BQFullRegs selected_bq;
+  const bool read_slot = selected_slot0 >= 0 && selected_slot0 < 16;
+  if (read_slot) {
+    ESP_LOGW(TAG_BQWEB, "Serving /bq: reading one BQ24195 slot C%02u.", selected_slot0 + 1);
+    configure_ina219();
+    capture_slot_full((uint8_t) selected_slot0, selected_s, selected_bq);
+  } else {
+    ESP_LOGW(TAG_BQWEB, "Serving /bq: table only, no I2C read.");
+  }
   auto *response = request->beginResponseStream("text/html");
-  response->print("<table border=\"1\"><tr><th>Slot</th><th>Route</th><th>TCA/ch</th><th>BQ</th><th>REG00</th><th>REG08</th><th>Charge</th><th>DPM</th><th>PG</th><th>VSYS</th><th>REG09</th><th>Fault</th><th>REG0A</th><th>INA Bus V</th><th>Shunt mV</th><th>A0</th></tr>");
+  response->print("<table border=\"1\"><tr><th>Slot</th><th>Read</th><th>Route</th><th>TCA/ch</th><th>BQ</th><th>REG00</th><th>REG08</th><th>Charge</th><th>DPM</th><th>PG</th><th>VSYS</th><th>REG09</th><th>Fault</th><th>REG0A</th><th>INA Bus V</th><th>Shunt mV</th><th>A0</th></tr>");
   for (uint8_t slot0 = 0; slot0 < 16; slot0++) {
-    SlotSnapshot s;
-    BQFullRegs bq;
-    capture_slot_full(slot0, s, bq);
-    bq_web_print_row(response, slot0, s, bq);
-    feed();
+    if (read_slot && slot0 == (uint8_t) selected_slot0) {
+      bq_web_print_row(response, slot0, &selected_s, &selected_bq);
+    } else {
+      bq_web_print_row(response, slot0, nullptr, nullptr);
+    }
   }
   response->print("</table>");
   request->send(response);
   ESP_LOGW(TAG_BQWEB, "Serving /bq complete.");
+}
+
+inline int8_t bq_web_slot_from_request(AsyncWebServerRequest *request) {
+  if (!request->hasParam("slot")) return -1;
+  const AsyncWebParameter *param = request->getParam("slot");
+  int slot = param->value().toInt();
+  if (slot < 1 || slot > 16) return -2;
+  return (int8_t) (slot - 1);
 }
 
 class BqTableHandler : public AsyncWebHandler {
@@ -659,11 +684,21 @@ class BqTableHandler : public AsyncWebHandler {
   }
 
   void handleRequest(AsyncWebServerRequest *request) override {
+    int8_t slot0 = bq_web_slot_from_request(request);
+    if (slot0 == -2) {
+      request->send(400, "text/plain", "slot must be 1..16");
+      return;
+    }
+    if (slot0 < 0) {
+      send_bq_table_response(request, -1);
+      return;
+    }
     if (pending_bq_web_request != nullptr || bq_web_processing) {
       request->send(503, "text/plain", "BQ table busy");
       return;
     }
     pending_bq_web_request = request;
+    pending_bq_web_slot0 = slot0;
     esphome::Application::wake_loop_any_context();
   }
 };
@@ -690,8 +725,10 @@ inline void process_bq_web_request() {
   if (pending_bq_web_request == nullptr || bq_web_processing) return;
   bq_web_processing = true;
   AsyncWebServerRequest *request = pending_bq_web_request;
+  int8_t slot0 = pending_bq_web_slot0;
   pending_bq_web_request = nullptr;
-  send_bq_table_response(request);
+  pending_bq_web_slot0 = -1;
+  send_bq_table_response(request, slot0);
   bq_web_processing = false;
 }
 

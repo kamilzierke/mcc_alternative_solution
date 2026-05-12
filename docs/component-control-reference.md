@@ -10,7 +10,7 @@ Observed I2C bus on ESP8266:
 
 - SDA: GPIO4
 - SCL: GPIO5
-- ESPHome currently uses 50 kHz; ESP8266EX I2C is software-driven and the datasheet describes 100 kHz as the maximum I2C clock.
+- Current native ESPHome config uses 100 kHz with `timeout: 50ms`; ESP8266EX I2C is software-driven and the datasheet describes 100 kHz as the maximum I2C clock.
 
 Known MCC Pro addresses:
 
@@ -72,7 +72,16 @@ MCC Pro confirmed use:
 - IC25 P0, physical pin 4 in the current trace, drives U10 74HC4067 enable.
 - U10 enable is active-low, with R4 pulling enable high by default.
 
-Safe control pattern:
+Safe control pattern in current native ESPHome config:
+
+1. Use the `pcf8574` component at `0x27`.
+2. Use an internal inverted GPIO switch on P0 named `tc1047_mux_enable`.
+3. Turn switch on to drive P0 low and enable U10.
+4. Select U10 channel through GPIO13/GPIO12/GPIO14/GPIO16.
+5. Read/average A0.
+6. Turn switch off to release/disable U10.
+
+Earlier direct-Wire safe control pattern:
 
 1. Read current PCF byte from `0x27`.
 2. Clear bit 0 only: `pcf_enable = pcf_before & 0xFE`.
@@ -188,8 +197,17 @@ MCC Pro use:
 - Each exposes up to eight downstream BQ24195 devices at repeated address `0x6B`.
 - U38 is confirmed as the `0x71` device: A0 is tied high to 5 V, A1/A2 are tied low, RESET is tied high, and SC7/SD7 route to the C16 BQ24195 clock/data lines.
 - C16 read-only ESPHome diagnostic confirmed BQ presence and cell-state response through U38 channel 7: empty slot logged `REG08=0x1D` and inserted-cell slot logged `REG08=0x2C`.
+- Current native ESPHome diagnostic mapping is confirmed operational: C1..C8 through TCA `0x70` channels 0..7 and C9..C16 through U38/TCA `0x71` channels 0..7.
 
-Safe query pattern:
+Safe query pattern in the native ESPHome config:
+
+1. Declare both TCA devices with the ESPHome `tca9548a` component.
+2. Expose every downstream channel as its own virtual I2C bus.
+3. Attach one BQ24195 `i2c_device` at `0x6B` to each virtual bus.
+4. Queue slot reads from UI/API actions.
+5. Drain the queue from the main ESPHome loop, one slot at a time.
+
+Earlier direct-Wire safe query pattern:
 
 1. Write `0x00` to both TCA devices.
 2. Select exactly one TCA and one channel: `1 << channel`.
@@ -251,9 +269,11 @@ High-value register groups:
 
 MCC Pro safe mode:
 
-- Read-only diagnostics may read `REG00..REG0A`.
+- Current native diagnostics read `REG00`, `REG08`, `REG09` twice and `REG0A`.
+- Earlier full-register diagnostics may read `REG00..REG0A`.
 - Do not write BQ registers until slot mapping, external MOSFET control and thermal behavior are understood.
 - Always select a single TCA channel before accessing `0x6B`.
+- On ESP8266 with ESPAsyncWebServer, do not perform BQ/TCA I2C reads inside the HTTP request callback. Queue the request and perform I2C from the main ESPHome loop.
 
 ## INA219B current/power monitor
 
@@ -289,7 +309,7 @@ MCC Pro current diagnostic behavior:
 
 - U47 address: `0x41` from A0 high and A1 low. This is the current tested ESPHome diagnostic path.
 - U34 address: `0x45` from A0 high and A1 high. Its path/slot association still needs tracing; it may not appear in the boot scan unless the relevant bus path is selected.
-- Current helper config writes `0x399F` to the U47 configuration register, then reads shunt and bus voltage.
+- Current native helper config writes `0x399F` to the U47 configuration register, then reads shunt and bus voltage while processing each queued slot diagnostic.
 - Without knowing shunt value, current/power values should be treated as uncalibrated.
 
 ## PCA9685PW 16-channel PWM controller

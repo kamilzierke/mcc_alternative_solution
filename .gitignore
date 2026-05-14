@@ -1,6 +1,7 @@
 .superpowers/
+docs/superpowers/
 .vscode/
-esphome/secrets.yaml
 .pio/
 firmware/.pio/
+firmware_dumps/
 .~lock.*#

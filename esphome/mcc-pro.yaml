@@ -57,7 +57,8 @@ web_server:
 
 # I2C observed on MCC Pro ESP8266 board.
 # Expected boot scan: 0x27, 0x3C, 0x41, 0x4F, 0x70, 0x71.
-# New trace: INA219 U47=0x41; U34=0x45 if visible on the selected bus/path.
+# Historical note: 0x45/U34 INA219 trace is superseded by the current native model,
+# where U34 is the HC4067 shunt mux used with U2 for internal INA219 at 0x4F.
 i2c:
   sda: GPIO4
   scl: GPIO5

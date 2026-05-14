@@ -1,18 +1,20 @@
-qty,pcb_ref,marking,identified_part,function,observed_address_or_signal,confidence,source_note
-1,MCU,ESP-12F,ESP8266 module,main MCU,Wi-Fi GPIO ADC,high,user sheet + board inspection
-1,U10,HC4067,Nexperia 74HC4067PW,temperature sensor mux for TC1047 C1..C16,Y0..Y15 C1..C16; E by IC25 P0; Z to A0,confirmed,PCB tracing + working ESPHome readout
-1,R4,10k,10 kOhm resistor,pull-up for U10 E to VCC,U10 default disabled,confirmed,measured by user
-1,IC25,PCF8574,PCF8574 I/O expander,controls U10 E via pin4/P0,0x27 P0 low enables U10,confirmed_for_U10_P0,PCB tracing + working ESPHome readout
-16,"U5 U6 U7 U8 U16 U17 U18 U19 U24 U25 U26 U27 U32 U33 U35; C15 ref recheck",AEWG,Microchip TC1047,linear analog temp sensors per cell,VOUT to U10 Y0..Y15; previous C15=U34 conflicts with later U34 INA219 trace,confirmed_working_ref_conflict_for_C15,PCB refs supplied by user + later U34 INA219 trace
-5,,HC4067,74HC4067PW,16-channel analog mux/demux,common S0..S3; individual enables still traced,high_part_medium_net,sheet + tracing
-16,,bq24195,TI BQ24195,single-cell charger ICs,0x6B behind TCA9548A,high_part_medium_mapping,I2C probe
-2,U38 + one untraced,PW548A,TI TCA9548APWR,8-channel I2C switch,U38 0x71 C9..C16; U38 SC7/SD7 to C16 BQ24195; second TCA 0x70 likely C1..C8,high_for_U38_C16,I2C probe + user trace + ESPHome C16 log
-1,,PCA9685PW,NXP PCA9685PW,16-channel PWM controller,0x4F,high,I2C probe
-2,U47 U34,B219,TI INA219BIDCNR,current power monitor,U47=0x41 A0 high A1 low; U34=0x45 A0 high A1 high,confirmed_refs_medium_path,I2C probe + user pin trace
-32,O13,683CK 3020,ALLPOWER AP3020,N-MOSFET likely charge/discharge switching,unknown gate map,medium,sheet
-8,,393,ST LM393DT,dual comparator,unknown threshold/status sensing,unknown,medium,sheet
-1,,OLED,OLED display,display,0x3C,high,I2C scan
-2,,IR4427S 237P H AAOW_,Infineon IR4427SPBF,dual non-inverting MOSFET/IGBT gate driver,likely fan/resistor cooling or power-path drive control,medium,Downloads.zip Megacellcharger Pro sheet
-1,,37CJ N05A,HGSEMI LM1117MP-3.3/TR,3.3 V LDO regulator,3.3 V rail candidate,medium,Downloads.zip Megacellcharger Pro sheet
-2,O9 O10,2Ct 27,"Nexperia BC849C,215",NPN small-signal transistor,30 V 100 mA SOT-23,medium,Downloads.zip Megacellcharger Pro sheet
-1,,A6162y,SHOUDING SD8942,600 kHz 16 V 2 A synchronous buck converter,logic/power rail candidate,medium,Downloads.zip Megacellcharger Pro sheet
+qty,pcb_ref,marking,identified_part,firmware_role,current_control_or_read_path,confidence,source_note
+1,MCU,ESP-12F,ESP8266 module,main controller,"GPIO4/GPIO5 I2C; GPIO13/12/14/16 HC4067 select; A0 analog input; UART0 logger",high,user sheet + working ESPHome
+1,IC25,PCF8574,PCF8574 I/O expander,HC4067 enable expander,"0x27; P0 U10 temp, P1 U10E external temp, P2 U34 shunt mux, P3 U3 external INA, P4 U2 internal INA; full-byte writes only",confirmed,PCB tracing + working native helper
+1,U10,HC4067,Nexperia 74HC4067PW,internal temperature mux,"Y0..Y15 map C1..C16 TC1047; E by IC25 P0 LOW; Z to ESP8266 A0",confirmed,PCB tracing + working ESPHome readout
+1,U10E,HC4067,Nexperia 74HC4067PW,external temperature mux,"selected by shared S0..S3; E by IC25 P1 LOW; Z to ESP8266 A0",current_native_used,user trace + native helper
+1,U34,HC4067,Nexperia 74HC4067PW,internal INA219 shunt mux,"selected by shared S0..S3; E by IC25 P2 LOW; used with U2/P4 as mask 0xEB for internal voltage/current",current_native_used,user correction + native helper
+1,U3,HC4067,Nexperia 74HC4067PW,external INA219 channel mux,"selected by shared S0..S3; E by IC25 P3 LOW; routes external-cell path to INA219 0x41",current_native_used,user correction + native helper
+1,U2,HC4067,Nexperia 74HC4067PW,internal INA219 BAT+ mux,"selected by shared S0..S3; E by IC25 P4 LOW; used with U34/P2 for internal INA219 0x4F",current_native_used,user correction + native helper
+16,"U5 U6 U7 U8 U16 U17 U18 U19 U24 U25 U26 U27 U32 U33 C15-ref-recheck U35",AEWG,Microchip TC1047,internal per-slot temperature sensors,"VOUT to U10 Y0..Y15; C15 PCB reference intentionally marked for recheck to avoid U34 conflict",confirmed_working,PCB refs supplied by user + working readout
+16,,bq24195,TI BQ24195,single-cell charger ICs,"0x6B behind TCA9548A; queued read/write actions for CHG_CONFIG, EN_HIZ, watchdog, IINLIM and ICHG",current_native_used,I2C probe + native helper + TI datasheet
+2,U38 + tca0,PW548A,TI TCA9548APWR,8-channel I2C switches,"0x70 C1-C8 and 0x71 C9-C16; one BQ24195 per downstream channel",current_native_used,I2C probe + user trace + ESPHome native mapping
+2,INA paths,B219,TI INA219BIDCNR,current/power monitors,"external path at 0x41 via U3; internal path at 0x4F via U2+U34; current derived from shunt mV and configured shunt mOhm",current_native_used,TI datasheet + native helper
+1,,PCA9685PW,NXP PCA9685PW,16-channel PWM controller candidate,"helper has experimental C16/Q34 channel-15 writes at 0x4F; conflicts with internal INA219 address and requires hardware confirmation",experimental_conflict,NXP datasheet + current helper warning
+1,,OLED,SSD1306 128x64 display,local status display,"0x3C on main_i2c; shows WiFi/API/RSSI/IP and temperature pages",current_native_used,I2C scan + ESPHome display config
+32,O13,683CK 3020,ALLPOWER AP3020,N-MOSFET likely charge/discharge switching,not actively controlled,"gate map unresolved; treat related PCA/PCF/GPIO outputs as safety-critical",medium,sheet
+8,,393,ST LM393DT,dual comparator,not actively controlled,"threshold/status functions unresolved; Q35 appears comparator-related in visible fragment",medium,sheet + helper comments
+2,,IR4427S 237P H AAOW_,Infineon IR4427SPBF,dual non-inverting MOSFET/IGBT gate driver,not actively controlled,"likely fan/resistor or power-path drive; downstream loads not traced",medium,Downloads.zip Megacellcharger Pro sheet
+1,,37CJ N05A,HGSEMI LM1117MP-3.3/TR,3.3 V LDO regulator,power rail component,3.3 V rail candidate; no firmware control,medium,Downloads.zip Megacellcharger Pro sheet
+2,O9 O10,2Ct 27,"Nexperia BC849C,215",NPN small-signal transistor,not actively controlled,"likely level shifting or low-side switching; trace base/collector networks before drive assumptions",medium,Downloads.zip Megacellcharger Pro sheet
+1,,A6162y,SHOUDING SD8942,600 kHz 16 V 2 A synchronous buck converter,power rail component,logic/power rail candidate; no firmware control unless EN is later traced,medium,Downloads.zip Megacellcharger Pro sheet

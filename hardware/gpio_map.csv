@@ -1,11 +1,19 @@
 esp8266_gpio_or_signal,symbol,observed_function,confidence,evidence,caveat
-GPIO0,BOOT,BOOT button / flashing mode,high,forum flashing instructions,strapping pin
-GPIO15,FUNC2 / DISCH_PWM?,FUNC2 button in sheet; forum says global 100 Hz discharge PWM,medium_conflict,sheet + forum,do not drive before tracing
-GPIO16,MUX_S3,74HC4067 select S3,confirmed,working U10 temp mux readout,special ESP8266 pin but OK as output
-GPIO14,MUX_S2,74HC4067 select S2,confirmed,working U10 temp mux readout,
-GPIO12,MUX_S1,74HC4067 select S1,confirmed,working U10 temp mux readout,verify boot conditions
-GPIO13,MUX_S0,74HC4067 select S0,confirmed,working U10 temp mux readout,
-A0,ADC,analog measurement input for U10 temperature mux Z path,confirmed_for_temperature_path,working TC1047 readout,effective full-scale 3.02V
-IC25 P0 pin4,U10_MUX_E,controls U10 74HC4067 E active-low,confirmed,continuity + working readout,restore previous PCF state after read
-GPIO4,I2C_SDA,I2C SDA in working ESPHome config,working_but_verify_by_tracing,I2C scan finds expected devices,
-GPIO5,I2C_SCL,I2C SCL in working ESPHome config,working_but_verify_by_tracing,I2C scan finds expected devices,
+GPIO0,BOOT,BOOT button / flashing mode,high,forum flashing instructions,strapping pin; not application logic in current native files
+GPIO1,UART0_TX,logger TX at 115200,standard_esp8266,logger baud_rate 115200,shared with serial programming/logging
+GPIO3,UART0_RX,UART0 RX / programming,standard_esp8266,ESP8266 UART0 behavior,not application logic in current native files
+GPIO4,I2C_SDA,I2C SDA in working ESPHome config,current_native_used,I2C scan/finds expected devices,
+GPIO5,I2C_SCL,I2C SCL in working ESPHome config,current_native_used,I2C scan/finds expected devices,
+GPIO6-GPIO11,FLASH_SPI,ESP8266 flash interface,reserved,ESP8266 module design,do not use
+GPIO12,MUX_S1,shared 74HC4067 select S1,current_native_used,working mux readout,verify boot conditions
+GPIO13,MUX_S0,shared 74HC4067 select S0,current_native_used,working mux readout,
+GPIO14,MUX_S2,shared 74HC4067 select S2,current_native_used,working mux readout,
+GPIO15,FUNC2 / DISCH_PWM?,FUNC2 button in sheet; forum says global 100 Hz discharge PWM,medium_conflict,sheet + forum,not used by current native files; do not drive before tracing
+GPIO16,MUX_S3,shared 74HC4067 select S3,current_native_used,working mux readout,special ESP8266 pin but OK as output
+A0,ADC,analog input for U10 internal TC1047 and U10E external temperature muxes,current_native_used,working TC1047 readout,effective full-scale 3.02V
+IC25 P0,U10_MUX_E,internal TC1047 HC4067 enable active-low,current_native_used,working readout,helper writes full PCF byte mask 0xFE
+IC25 P1,U10E_MUX_E,external temperature HC4067 enable active-low,current_native_used,native helper,helper writes full PCF byte mask 0xFD
+IC25 P2,U34_SHUNT_MUX_E,internal INA219 shunt HC4067 enable active-low,current_native_used,user correction + native helper,used with P4 for mask 0xEB; no standalone A0 read
+IC25 P3,U3_EXT_INA_MUX_E,external INA219 HC4067 enable active-low,current_native_used,user correction + native helper,helper writes full PCF byte mask 0xF7
+IC25 P4,U2_INT_INA_MUX_E,internal INA219 BAT+ HC4067 enable active-low,current_native_used,user correction + native helper,used with P2 for mask 0xEB
+IC25 P5-P7,UNUSED,not used by current native firmware,unused,current native helper,keep high/idle until traced

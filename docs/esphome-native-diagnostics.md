@@ -25,7 +25,7 @@ The current native diagnostic firmware directly handles the confirmed I2C/contro
 - INA219 internal path at `0x4F`.
 - 1x SSD1306 OLED at `0x3C`.
 
-It also reads all 16 internal TC1047 temperature sensors, the external temperature mux, a raw U34 diagnostic mux and per-slot INA219 values through shared 74HC4067 select lines.
+It also reads all 16 internal TC1047 temperature sensors, the external temperature mux and per-slot INA219 values through shared 74HC4067 select lines.
 PCA9685-style writes for C16/Q34 exist as bring-up tests, but `0x4F` is also used for the internal INA219 path in this helper, so this remains a hardware-risk area until the address conflict is resolved.
 
 ## Architecture
@@ -47,7 +47,7 @@ The helper file `mcc_diag_helpers_native.h` keeps only board-specific logic that
 
 - 74HC4067 select GPIO handling.
 - TC1047 ADC averaging and conversion.
-- External temperature and raw U34 ADC diagnostics.
+- External temperature diagnostics.
 - INA219 reads through U2+U34 and U3 mux paths.
 - BQ24195 register reads and limited host-control writes.
 - `/bq`, `/status` and `/c16` queue/cache web tables.
@@ -65,7 +65,7 @@ Direct ESP-12F / ESP8266 pins used by the current native files:
 | GPIO12 | OUT | shared HC4067 `S1`, channel bit 1 |
 | GPIO14 | OUT | shared HC4067 `S2`, channel bit 2 |
 | GPIO16 | OUT | shared HC4067 `S3`, channel bit 3 |
-| A0 / ADC0 | IN | analog input from U10, U10E and U34 HC4067 outputs |
+| A0 / ADC0 | IN | analog input from U10 and U10E HC4067 outputs |
 | GPIO1 / TX0 | OUT | UART logger at 115200 baud |
 | GPIO3 / RX0 | IN | UART0/programming path, not application logic |
 
@@ -100,7 +100,7 @@ The ESP does not directly drive HC4067 enable pins. It writes full byte masks to
 | --- | --- | --- | --- |
 | P0 | LOW | U10 internal TC1047 temperature mux to A0 | `0xFE` |
 | P1 | LOW | U10E external temperature mux to A0 | `0xFD` |
-| P2 | LOW | U34 raw diagnostic/shunt mux | `0xFB` |
+| P2 | LOW | U34 shunt mux for internal INA219 | `0xFB` |
 | P3 | LOW | U3 external-cell path to INA219 `0x41` | `0xF7` |
 | P4 | LOW | U2 internal BAT+ path to INA219 `0x4F` | `0xEF` |
 | P2+P4 | LOW | U34+U2 internal INA219 path | `0xEB` |
@@ -125,6 +125,13 @@ Confirmed U38 details:
 - SC7/SD7 route to C16 BQ24195 SCL/SDA.
 
 ## Web interface
+
+Current captured views:
+
+- [`/bq` full slot diagnostics](screenshots/endpoint-bq-full-slot-table.png)
+- [`/status` compact status table](screenshots/endpoint-status-compact-table.png)
+- [`/c16` raw diagnostics](screenshots/endpoint-c16-raw-diagnostics.png)
+- [Home Assistant MCC dashboard](screenshots/home-assistant-mcc-dashboard.png)
 
 Endpoint: `/bq`
 
@@ -188,7 +195,6 @@ Each queued slot read currently captures:
 
 - TC1047 temperature for the selected slot.
 - External temperature mux reading for the selected slot.
-- Raw U34 diagnostic mux reading.
 - Internal INA219 bus voltage, shunt voltage and derived current.
 - External INA219 bus voltage, shunt voltage and derived current.
 - BQ24195 `REG00`.

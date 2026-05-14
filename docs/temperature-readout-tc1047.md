@@ -56,7 +56,7 @@ Safe sequence:
 | C12 | U27 | Y11 | 11 |
 | C13 | U32 | Y12 | 12 |
 | C14 | U33 | Y13 | 13 |
-| C15 | U34? | Y14 | 14 |
+| C15 | ref recheck | Y14 | 14 |
 | C16 | U35 | Y15 | 15 |
 
 ## TC1047 conversion
@@ -75,7 +75,7 @@ T = (VOUT - 0.500) / 0.010
 
 Calibration evidence: ESPHome voltage calculated with 3.30 V scale was 0.8761 V while multimeter showed 0.801 V. Corrected full-scale is `3.30 * 0.801 / 0.8761 = 3.017 V`.
 
-Note: the C15 PCB reference needs recheck. Earlier notes mapped C15 TC1047 to U34, but later pin tracing identifies U34 as an INA219 with A0 high and A1 high, giving address `0x45`.
+Note: the C15 PCB reference needs recheck. Earlier notes mapped C15 TC1047 to U34, but the current native model uses U34 as the HC4067 shunt mux for the internal INA219 path.
 
 ## Why earlier reads returned raw 0/1
 

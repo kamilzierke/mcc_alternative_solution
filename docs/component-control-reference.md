@@ -18,9 +18,9 @@ Known MCC Pro addresses:
 | --- | --- | --- |
 | `0x27` | PCF8574 / IC25 | 8-bit expander; P0 controls U10 temperature mux enable |
 | `0x3C` | SSD1306 OLED | 128x64 status display |
-| `0x41` | INA219B / U47 | current/power monitor; A0 high, A1 low |
-| `0x45` | INA219B / U34 | current/power monitor; A0 high, A1 high; path/slot association still being traced |
-| `0x4F` | PCA9685PW | 16-channel PWM controller |
+| `0x41` | INA219 external path | current/power monitor selected through U3 HC4067 |
+| `0x45` | historical INA219 trace | not used by current native firmware; U34 is now modeled as the shunt HC4067 mux |
+| `0x4F` | INA219 internal path / PCA9685 conflict | internal INA219 selected through U2+U34; PCA9685 at the same address remains unresolved |
 | `0x6B` | BQ24195 | charger IC behind TCA9548A channel switches |
 | `0x70` | TCA9548A | I2C mux for 8 BQ24195 devices |
 | `0x71` | TCA9548A | second I2C mux for 8 BQ24195 devices |
@@ -307,10 +307,10 @@ Register map:
 
 MCC Pro current diagnostic behavior:
 
-- U47 address: `0x41` from A0 high and A1 low. This is the current tested ESPHome diagnostic path.
-- U34 address: `0x45` from A0 high and A1 high. Its path/slot association still needs tracing; it may not appear in the boot scan unless the relevant bus path is selected.
-- Current native helper config writes `0x399F` to the U47 configuration register, then reads shunt and bus voltage while processing each queued slot diagnostic.
-- Without knowing shunt value, current/power values should be treated as uncalibrated.
+- External path: U3 HC4067 selected by PCF8574 P3 LOW routes the selected slot to INA219 at `0x41`.
+- Internal path: U2 HC4067 BAT+ mux and U34 HC4067 shunt mux are enabled together with PCF8574 mask `0xEB`, then read through INA219 at `0x4F`.
+- Current native helper config writes `0x399F` to the selected INA219 configuration register, then reads shunt and bus voltage while processing queued slot diagnostics.
+- Without a confirmed shunt value, current values are derived from firmware-configured shunt milliohms and should be treated as diagnostic.
 
 ## PCA9685PW 16-channel PWM controller
 
@@ -353,7 +353,7 @@ Safe diagnostics:
 
 MCC Pro observed address:
 
-- `0x4F`.
+- `0x4F`, but this conflicts with the current internal INA219 path. Treat PCA9685 writes as experimental until hardware probing resolves the address conflict.
 
 ## SSD1306 OLED controller/display module
 

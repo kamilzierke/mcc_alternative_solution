@@ -1,13 +1,13 @@
 address,decimal,device,variant_context,confidence,notes
-0x20,32,PCF8574/PCF8574A,regular firmware boot log,high,one of regular board expanders
-0x21,33,PCF8574/PCF8574A,regular firmware boot log,high,one of regular board expanders
-0x22,34,PCF8574/PCF8574A,regular firmware boot log,high,one of regular board expanders
-0x23,35,PCF8574/PCF8574A,regular firmware boot log,high,regular board slots 13-16 expander per forum
-0x27,39,PCF8574 IC25,Pro tested board,confirmed,IC25 pin4/P0 controls U10 temperature mux E active-low
-0x3C,60,OLED display,regular + Pro,high,screen blank in ESPHome because no display driver configured
-0x4F,79,PCA9685PW,regular + Pro,high,function still being traced
-0x41,65,INA219B U47,Pro board,confirmed_by_pin_trace,U47 A0=5V/high A1=GND/low; current ESPHome diagnostic path
-0x45,69,INA219B U34,Pro board,pin_trace_not_yet_seen_in_boot_scan,U34 A0=5V/high A1=5V/high; path/slot association still being traced
-0x6B,107,BQ24195,Pro via TCA9548A,confirmed_native_mapping,16 devices found behind TCA; native ESPHome reads confirmed C1-C8 via 0x70 ch0-ch7 and C9-C16 via 0x71 ch0-ch7
-0x70,112,TCA9548A,Pro,confirmed,8 downstream channels; likely C1-C8 side
-0x71,113,TCA9548A U38,Pro,confirmed_native_mapping,U38 A0=5V A1=GND A2=GND RESET=5V; native ESPHome reads confirmed C9-C16 via channels 0-7
+0x20,32,PCF8574/PCF8574A,regular firmware boot log,high,one of regular board expanders; not used by current MCC Pro native firmware
+0x21,33,PCF8574/PCF8574A,regular firmware boot log,high,one of regular board expanders; not used by current MCC Pro native firmware
+0x22,34,PCF8574/PCF8574A,regular firmware boot log,high,one of regular board expanders; not used by current MCC Pro native firmware
+0x23,35,PCF8574/PCF8574A,regular firmware boot log,high,regular board slots 13-16 expander per forum; not used by current MCC Pro native firmware
+0x27,39,PCF8574 IC25,Pro tested board,confirmed,active-low HC4067 enables P0..P4; helper uses full-byte writes and idle 0xFF
+0x3C,60,SSD1306 OLED,regular + Pro,confirmed,128x64 display on main_i2c; used for local WiFi/API/temperature status
+0x41,65,INA219 external path,Pro board,current_native_used,U3 HC4067 external-cell path feeds INA219 #1; helper reads bus/shunt/current per selected slot
+0x45,69,INA219B historical trace,Pro board,historical_unconfirmed_not_current,older notes associated U34 with INA219; current model treats U34 as HC4067 shunt mux and does not use 0x45
+0x4F,79,INA219 internal path / PCA9685 conflict,Pro board,current_native_used_with_conflict,U2+U34 HC4067 internal path feeds INA219 #2 at 0x4F in helper; PCA9685 at same address remains unresolved hardware conflict
+0x6B,107,BQ24195,Pro via TCA9548A,current_native_used,16 devices behind TCA; C1-C8 via 0x70 ch0-ch7 and C9-C16 via 0x71 ch0-ch7
+0x70,112,TCA9548A tca0,Pro,current_native_used,8 downstream BQ24195 channels for C1-C8
+0x71,113,TCA9548A U38/tca1,Pro,current_native_used,U38 A0=5V A1=GND A2=GND RESET=5V; channels C9-C16

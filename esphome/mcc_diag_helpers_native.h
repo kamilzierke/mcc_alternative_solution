@@ -35,7 +35,7 @@ static constexpr uint8_t ADDR_TCA1 = 0x71;
 static constexpr uint8_t PCF_SAFE_IDLE = 0xFF;
 static constexpr uint8_t PCF_U10_TC1047_MUX_ENABLE = 0xFE;  // 11111110, P0 LOW
 static constexpr uint8_t PCF_U10E_EXTERNAL_TEMP_ENABLE = 0xFD;  // 11111101, P1 LOW
-static constexpr uint8_t PCF_U34_MUX_ENABLE        = 0xFB;  // 11111011, P2 LOW
+static constexpr uint8_t PCF_U34_MUX_ENABLE        = 0xFB;  // 11111011, P2 LOW; U34 shunt mux for internal INA219.
 static constexpr uint8_t PCF_U3_EXTERNAL_INA_ENABLE    = 0xF7;  // 11110111, P3 LOW
 static constexpr uint8_t PCF_U2_INTERNAL_INA_ENABLE    = 0xEF;  // 11101111, P4 LOW
 static constexpr uint8_t PCF_U2_U34_INTERNAL_INA_ENABLE = 0xEB;  // 11101011, P2+P4 LOW: U34 shunt mux + U2 BAT+ mux for internal INA.
@@ -44,7 +44,6 @@ static constexpr uint8_t PCF_U2_U34_INTERNAL_C16_INA_ENABLE = PCF_U2_U34_INTERNA
 enum class Hc4067Mux : uint8_t {
   U10_TC1047 = 0,
   U10E = 1,
-  U34 = 2,
   U3_INA219 = 3,
   U2 = 4,
 };
@@ -132,7 +131,6 @@ struct SlotSnapshot {
   Hc4067AdcSnapshot u10e;  // external temperature raw voltage.
   bool external_temp_ok{false};
   float external_temp_c{NAN};
-  Hc4067AdcSnapshot u34;    // still-undocumented diagnostic mux.
 };
 
 struct BqRoute {
@@ -263,7 +261,8 @@ inline esphome::i2c::I2CDevice &ina_internal_dev() {
   return id(ina_internal_u2);
 }
 
-// U34 is an HC4067 mux for shunt paths, not an INA219. The two real INA219s are:
+// U34 is an HC4067 mux for shunt paths, not a raw ADC diagnostic path and not an INA219.
+// The two real INA219 paths used by current firmware are:
 //   external path: U3 HC4067 -> INA219 #1 @ 0x41
 //   internal path: U2 HC4067 plus U34 shunt mux for C16 -> INA219 #2 @ 0x4F
 
@@ -313,8 +312,6 @@ inline uint8_t pcf_mask_for_hc4067(Hc4067Mux mux) {
       return PCF_U10_TC1047_MUX_ENABLE;
     case Hc4067Mux::U10E:
       return PCF_U10E_EXTERNAL_TEMP_ENABLE;
-    case Hc4067Mux::U34:
-      return PCF_U34_MUX_ENABLE;
     case Hc4067Mux::U3_INA219:
       return PCF_U3_EXTERNAL_INA_ENABLE;
     case Hc4067Mux::U2:
@@ -327,7 +324,6 @@ inline const char *hc4067_mux_name(Hc4067Mux mux) {
   switch (mux) {
     case Hc4067Mux::U10_TC1047: return "U10/TC1047";
     case Hc4067Mux::U10E: return "U10E/ext-temp";
-    case Hc4067Mux::U34: return "U34";
     case Hc4067Mux::U3_INA219: return "U3/ext-INA";
     case Hc4067Mux::U2: return "U2/int-INA";
   }
@@ -472,6 +468,7 @@ inline void mirror_internal_ina_to_legacy(SlotSnapshot &s) {
 inline bool capture_hc4067_adc_slot(uint8_t slot0, Hc4067Mux mux, Hc4067AdcSnapshot &out, uint8_t samples = 8) {
   // Generic raw ADC read for HC4067 muxes whose common output is routed to ESP8266 A0.
   // U2 and U3 are intentionally excluded: they route selected cell voltage into INA219, not A0.
+  // U34 is also intentionally excluded from raw diagnostics: it selects shunts for the internal INA219 path.
   if (mux == Hc4067Mux::U3_INA219 || mux == Hc4067Mux::U2) {
     ESP_LOGW(TAG_BQWEB, "Refusing raw ADC read on %s C%02u; U2/U3 must be read through their INA219 devices.",
              hc4067_mux_name(mux), slot0 + 1);
@@ -536,13 +533,6 @@ inline bool capture_external_temp_slot(uint8_t slot0, SlotSnapshot &s) {
   ESP_LOGI(TAG_TEMP, "C%02u external temp via U10E: ok=%s raw=%.2f voltage=%.4fV temp=%.1fC",
            slot0 + 1, yesno(s.external_temp_ok), s.u10e.raw_avg, s.u10e.v, s.external_temp_c);
   return s.external_temp_ok;
-}
-
-inline void capture_extra_hc4067_muxes_for_slot(uint8_t slot0, SlotSnapshot &s) {
-  // U10E is the external temperature mux. U34 remains a raw diagnostic mux until traced.
-  // U2 is not read here: it is the internal voltage path into INA219 #2 @ 0x4F.
-  capture_external_temp_slot(slot0, s);
-  capture_hc4067_adc_slot(slot0, Hc4067Mux::U34, s.u34, 8);
 }
 
 inline bool capture_ina219_via_mux(uint8_t slot0, Hc4067Mux mux, esphome::i2c::I2CDevice &dev,
@@ -782,7 +772,7 @@ inline bool read_bq_web_regs(esphome::i2c::I2CDevice &dev, SlotSnapshot &s, BQFu
 }
 inline void capture_slot_full(uint8_t slot0, SlotSnapshot &s, BQFullRegs &bq) {
   capture_tc1047_slot(slot0, s);
-  capture_extra_hc4067_muxes_for_slot(slot0, s);
+  capture_external_temp_slot(slot0, s);
 
   // INA219 voltage/current reads are per-slot and split into two physical paths:
   // internal: U2+U34 HC4067 pair -> INA219 #2 @ 0x4F; external: U3 HC4067 -> INA219 #1 @ 0x41.
@@ -843,15 +833,14 @@ inline void publish_c16_diagnostics(const SlotSnapshot &s, const BQFullRegs &bq)
 
 inline void log_bq_line(uint8_t slot0, const SlotSnapshot &s, const BQFullRegs &bq, const char *prefix) {
   ESP_LOGI(TAG_BQFULL,
-           "%s slot=C%02u route=%s bus=%s TCA=0x%02X ch=%u mask=0x%02X BQ=%s REG00=0x%02X REG01=0x%02X REG02=0x%02X REG05=0x%02X REG08=0x%02X chg=%s DPM=%u PG=%u VSYS=%u REG09=0x%02X fault=%s REG0A=0x%02X int_temp=%.1fC int_INA=%.3fV/%.2fmV/%.1fmA ext_temp=%.1fC ext_INA=%.3fV/%.2fmV/%.1fmA U34=%.0f/%.3fV",
+           "%s slot=C%02u route=%s bus=%s TCA=0x%02X ch=%u mask=0x%02X BQ=%s REG00=0x%02X REG01=0x%02X REG02=0x%02X REG05=0x%02X REG08=0x%02X chg=%s DPM=%u PG=%u VSYS=%u REG09=0x%02X fault=%s REG0A=0x%02X int_temp=%.1fC int_INA=%.3fV/%.2fmV/%.1fmA ext_temp=%.1fC ext_INA=%.3fV/%.2fmV/%.1fmA",
            prefix, slot0 + 1, tca_ref_for_slot(slot0), bus_id_for_slot(slot0),
            tca_addr_for_slot(slot0), tca_channel_for_slot(slot0), tca_mask_for_slot(slot0),
            yesno(bq.ok), bq.r[0x00], bq.r[0x01], bq.r[0x02], bq.r[0x05], bq.r[0x08], bq_chrg_str(bq.r[0x08]),
            (bq.r[0x08] >> 3) & 1, (bq.r[0x08] >> 2) & 1, bq.r[0x08] & 1,
            s.reg09b, bq_fault_str(s.reg09b), bq.r[0x0A],
            s.temp_c, s.internal_ina.bus_v, s.internal_ina.shunt_mv, s.internal_ina.current_mA,
-           s.external_temp_c, s.external_ina.bus_v, s.external_ina.shunt_mv, s.external_ina.current_mA,
-           s.u34.raw_avg, s.u34.v);
+           s.external_temp_c, s.external_ina.bus_v, s.external_ina.shunt_mv, s.external_ina.current_mA);
 }
 
 inline uint8_t pending_count() {
@@ -1298,7 +1287,7 @@ inline void bq_web_print_bulk_row(TResponse *response) {
   bq_web_print_bulk_action_cell(response, "i7", "3A all");
   bq_web_print_bulk_ichg_select_cell(response);
   bq_web_print_bulk_clear_cell(response);
-  response->print("<td colspan=16>Bulk commands are queued for C01..C16 and executed one slot at a time in the main loop. Each row reads internal temp/INA via U10 and U2+U34, external temp/INA via U10E/U3 on the matching channel.</td></tr>");
+  response->print("<td colspan=15>Bulk commands are queued for C01..C16 and executed one slot at a time in the main loop. Each row reads internal temp/INA via U10 and U2+U34, external temp/INA via U10E/U3 on the matching channel.</td></tr>");
 }
 
 template<typename TResponse>
@@ -1357,7 +1346,7 @@ inline void bq_web_print_row(TResponse *response, uint8_t slot0) {
   bq_web_print_cell(response, buf);
 
   if (!have_data) {
-    for (uint8_t i = 0; i < 14; i++) bq_web_print_cell(response, "-");
+    for (uint8_t i = 0; i < 13; i++) bq_web_print_cell(response, "-");
     response->print("</tr>");
     return;
   }
@@ -1379,7 +1368,6 @@ inline void bq_web_print_row(TResponse *response, uint8_t slot0) {
   bq_web_print_ina_cell(response, s->internal_ina);
   bq_web_print_cell_float(response, s->external_temp_c, 1);
   bq_web_print_ina_cell(response, s->external_ina);
-  bq_web_print_hc4067_adc_cell(response, s->u34);
 
   snprintf(buf, sizeof(buf), "%lus", (unsigned long) ((millis() - bq_cached_read_ms[slot0]) / 1000UL));
   bq_web_print_cell(response, buf);
@@ -1452,13 +1440,13 @@ inline bool bq_web_build_next_chunk(BqWebChunkState &state, const String &notice
     bq_web_print_bulk_row(&state.chunk);
     state.chunk.print("<tr>"
                       "<th colspan=2>Web</th><th colspan=8>BQ cmd</th><th>Web</th><th colspan=2>TCA</th>"
-                      "<th colspan=8>BQ</th><th colspan=5>HC4067 slot channel</th><th>Cache</th></tr>"
+                      "<th colspan=8>BQ</th><th colspan=4>HC4067 slot channel</th><th>Cache</th></tr>"
                       "<tr><th>Slot</th><th>Read</th><th>ON</th><th>OFF</th><th>WD</th>"
                       "<th>I.5</th><th>I.9</th><th>I1.5</th><th>I3</th><th>ICHG</th>"
                       "<th>Q</th><th>Mux</th><th>Ch</th>"
                       "<th>Present</th><th>Input source</th><th>Power config</th><th>Charge current</th><th>Watchdog</th>"
                       "<th>System status</th><th>Fault</th><th>Part/rev</th>"
-                      "<th>Int Temp C</th><th>Int V/mA</th><th>Ext Temp C</th><th>Ext V/mA</th><th>U34 raw/V</th><th>Age</th></tr>");
+                      "<th>Int Temp C</th><th>Int V/mA</th><th>Ext Temp C</th><th>Ext V/mA</th><th>Age</th></tr>");
     state.phase = 1;
     return true;
   }
@@ -2163,7 +2151,6 @@ inline bool c16_web_build_next_chunk(C16WebChunkState &state) {
     temp_int.v = s.temp_v;
     c16_web_print_adc_row(&state.chunk, "ADC U10", "internal TC1047", temp_int, s.temp_c, "Internal cell temperature path: U10/P0 LOW -> A0");
     c16_web_print_adc_row(&state.chunk, "ADC U10E", "external temp", s.u10e, s.external_temp_c, "External connector temperature path: U10E/P1 LOW -> A0");
-    c16_web_print_adc_row(&state.chunk, "ADC U34", "shunt mux raw diagnostic", s.u34, NAN, "U34 shunt mux; internal INA uses U2+U34 combined mask 0xEB");
     state.phase = 3;
     return true;
   }

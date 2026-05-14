@@ -1,0 +1,978 @@
+type: sections
+max_columns: 4
+title: MCC
+path: mcc
+sections:
+  - type: grid
+    cards:
+      - type: heading
+        heading: C1 - C8
+        heading_style: title
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c1_internal_ina219_bus_voltage
+        primary: C1
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c1_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c1_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c1_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c1_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_tc1047_temperature_diagnostic_c1_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c1_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c1_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c1_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery
+        icon_color: >-
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c1_tc1047_temperature')
+          %} {% if t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--green-color);
+            }
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c2_internal_ina219_bus_voltage
+        primary: C2
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c2_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c2_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c2_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c2_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_tc1047_temperature_diagnostic_c2_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c2_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c2_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c2_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery
+        icon_color: >-
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c2_tc1047_temperature')
+          %} {% if t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--green-color);
+            }
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c3_internal_ina219_bus_voltage
+        primary: C3
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c3_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c3_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c3_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c3_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_tc1047_temperature_diagnostic_c3_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c3_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c3_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c3_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery
+        icon_color: >-
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c3_tc1047_temperature')
+          %} {% if t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--green-color);
+            }
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c4_internal_ina219_bus_voltage
+        primary: C4
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c4_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c4_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c4_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c4_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_tc1047_temperature_diagnostic_c4_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c4_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c4_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c4_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery
+        icon_color: >-
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c4_tc1047_temperature')
+          %} {% if t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--green-color);
+            }
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c5_internal_ina219_bus_voltage
+        primary: C5
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c5_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c5_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c5_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c5_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_tc1047_temperature_diagnostic_c5_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c5_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c5_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c5_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery
+        icon_color: >-
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c5_tc1047_temperature')
+          %} {% if t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--green-color);
+            }
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c6_internal_ina219_bus_voltage
+        primary: C6
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c6_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c6_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c6_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c6_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_tc1047_temperature_diagnostic_c6_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c6_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c6_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c6_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery
+        icon_color: >-
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c6_tc1047_temperature')
+          %} {% if t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--green-color);
+            }
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c7_internal_ina219_bus_voltage
+        primary: C7
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c7_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c7_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c7_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c7_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_tc1047_temperature_diagnostic_c7_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c7_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c7_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c7_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery
+        icon_color: >-
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c7_tc1047_temperature')
+          %} {% if t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--green-color);
+            }
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c8_internal_ina219_bus_voltage
+        primary: C8
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_snapshot_trace_diagnostic_c8_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c8_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c8_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c8_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_snapshot_trace_diagnostic_c8_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c8_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c8_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c8_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery-alert
+        icon_color: >-
+          {% set t =
+          states('sensor.mcc_pro_snapshot_trace_diagnostic_c8_tc1047_temperature')
+          %} {% if t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--amber-color);
+            }
+    column_span: 2
+  - type: grid
+    cards:
+      - type: heading
+        heading: C9 - C16
+        heading_style: title
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c9_internal_ina219_bus_voltage
+        primary: C9
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c9_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c9_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c9_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c9_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_tc1047_temperature_diagnostic_c9_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c9_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c9_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c9_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery
+        icon_color: >-
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c9_tc1047_temperature')
+          %} {% if t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--green-color);
+            }
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c10_internal_ina219_bus_voltage
+        primary: C10
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c10_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c10_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c10_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c10_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_tc1047_temperature_diagnostic_c10_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c10_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c10_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c10_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery
+        icon_color: >-
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c10_tc1047_temperature')
+          %} {% if t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--green-color);
+            }
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c11_internal_ina219_bus_voltage
+        primary: C11
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c11_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c11_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c11_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c11_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_tc1047_temperature_diagnostic_c11_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c11_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c11_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c11_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery
+        icon_color: >-
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c11_tc1047_temperature')
+          %} {% if t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--green-color);
+            }
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c12_internal_ina219_bus_voltage
+        primary: C12
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c12_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c12_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c12_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c12_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_tc1047_temperature_diagnostic_c12_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c12_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c12_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c12_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery
+        icon_color: >-
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c12_tc1047_temperature')
+          %} {% if t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--green-color);
+            }
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c13_internal_ina219_bus_voltage
+        primary: C13
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c13_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c13_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c13_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c13_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_tc1047_temperature_diagnostic_c13_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c13_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c13_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c13_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery
+        icon_color: >-
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c13_tc1047_temperature')
+          %} {% if t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--green-color);
+            }
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c14_internal_ina219_bus_voltage
+        primary: C14
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c14_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c14_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c14_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c14_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_tc1047_temperature_diagnostic_c14_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c14_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c14_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c14_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery
+        icon_color: >-
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c14_tc1047_temperature')
+          %} {% if t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--green-color);
+            }
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c15_internal_ina219_bus_voltage
+        primary: C15
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c15_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c15_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c15_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c15_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_tc1047_temperature_diagnostic_c15_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c15_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c15_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c15_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery
+        icon_color: >-
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c15_tc1047_temperature')
+          %} {% if t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--green-color);
+            }
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c16_internal_ina219_bus_voltage
+        primary: C16
+        secondary: >
+          {% set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c16_tc1047_temperature')
+          %}
+
+          {% set u = states('sensor.mcc_pro_c16_internal_ina219_bus_voltage') %}
+
+          {% set i = states('sensor.mcc_pro_c16_internal_ina219_current') %}
+
+          {% set sh = states('sensor.mcc_pro_c16_internal_ina219_shunt_voltage')
+          %}
+
+          T: {{ (t | float | round(2)) if is_number(t) else t }} {{
+          state_attr('sensor.mcc_pro_tc1047_temperature_diagnostic_c16_tc1047_temperature',
+          'unit_of_measurement') or '' }}
+
+          U: {{ (u | float | round(2)) if is_number(u) else u }} {{
+          state_attr('sensor.mcc_pro_c16_internal_ina219_bus_voltage',
+          'unit_of_measurement') or '' }}
+
+          I: {{ (i | float | round(2)) if is_number(i) else i }} {{
+          state_attr('sensor.mcc_pro_c16_internal_ina219_current',
+          'unit_of_measurement') or '' }}
+
+          Sh: {{ (sh | float | round(2)) if is_number(sh) else sh }} {{
+          state_attr('sensor.mcc_pro_c16_internal_ina219_shunt_voltage',
+          'unit_of_measurement') or '' }}
+        icon: mdi:battery-charging
+        icon_color: >-
+          {% set fault = states('sensor.mcc_pro_c16_bq24195_fault_status') %} {%
+          set t =
+          states('sensor.mcc_pro_tc1047_temperature_diagnostic_c16_tc1047_temperature')
+          %} {% if fault not in ['unknown', 'unavailable', 'none', '0', 'OK',
+          'ok', 'No fault', 'no fault'] %}
+            red
+          {% elif t in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif t | float > 50 %}
+            red
+          {% elif t | float > 40 %}
+            orange
+          {% elif t | float < 5 %}
+            blue
+          {% else %}
+            green
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--blue-color);
+            }
+    column_span: 2
+  - type: grid
+    cards:
+      - type: heading
+        heading: Diag
+        heading_style: title
+      - type: custom:mushroom-template-card
+        entity: sensor.mcc_pro_c16_bq24195_charge_status
+        primary: C16 — BQ24195
+        secondary: >
+          {% set present = states('sensor.mcc_pro_c16_bq24195_present') %}
+
+          {% set pg = states('sensor.mcc_pro_c16_bq24195_power_good') %}
+
+          {% set charge = states('sensor.mcc_pro_c16_bq24195_charge_status') %}
+
+          {% set fault = states('sensor.mcc_pro_c16_bq24195_fault_status') %}
+
+          {% set dpm = states('sensor.mcc_pro_c16_bq24195_dpm_status') %}
+
+          {% set vsys = states('sensor.mcc_pro_c16_bq24195_vsys_status') %}
+
+          {% set reg08 = states('sensor.mcc_pro_c16_bq24195_reg08') %}
+
+          {% set reg09 = states('sensor.mcc_pro_c16_bq24195_reg09') %}
+
+          {% set reg0a = states('sensor.mcc_pro_c16_bq24195_reg0a') %}
+
+          Present: {{ (present | float | round(2)) if is_number(present) else
+          present }}
+
+          PG: {{ (pg | float | round(2)) if is_number(pg) else pg }}
+
+          Charge: {{ (charge | float | round(2)) if is_number(charge) else
+          charge }}
+
+          Fault: {{ (fault | float | round(2)) if is_number(fault) else fault }}
+
+          DPM: {{ (dpm | float | round(2)) if is_number(dpm) else dpm }}
+
+          VSYS: {{ (vsys | float | round(2)) if is_number(vsys) else vsys }}
+
+          REG08: {{ (reg08 | float | round(2)) if is_number(reg08) else reg08 }}
+
+          REG09: {{ (reg09 | float | round(2)) if is_number(reg09) else reg09 }}
+
+          REG0A: {{ (reg0a | float | round(2)) if is_number(reg0a) else reg0a }}
+        icon: mdi:chip
+        icon_color: >-
+          {% set fault = states('sensor.mcc_pro_c16_bq24195_fault_status') %} {%
+          if fault in ['unknown', 'unavailable', 'none'] %}
+            grey
+          {% elif fault in ['0', 'OK', 'ok', 'No fault', 'no fault'] %}
+            green
+          {% else %}
+            red
+          {% endif %}
+        multiline_secondary: true
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+              border-left: 5px solid var(--purple-color);
+            }
+    column_span: 2
+  - type: grid
+    cards:
+      - type: heading
+        heading: MCC Pro — system
+      - type: custom:mushroom-chips-card
+        chips:
+          - type: entity
+            entity: device_tracker.mcc_pro
+            name: MCC Pro
+            icon: mdi:lan-connect
+            content_info: state
+          - type: entity
+            entity: sensor.mcc_pro_ip_address
+            name: IP
+            icon: mdi:ip-network
+            content_info: state
+          - type: entity
+            entity: sensor.mcc_pro_wifi_signal_db
+            name: WiFi
+            icon: mdi:wifi
+            content_info: state
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 18px;
+            }
+cards: []

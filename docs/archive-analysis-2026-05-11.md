@@ -53,7 +53,7 @@ Important compatibility facts:
 
 Imported to:
 
-- `firmware/README.md`
+- local ignored `archive/firmware-readonly-v0.3/` notes
 - `docs/api-compatibility.md`
 
 ## Hardware findings

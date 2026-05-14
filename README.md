@@ -47,6 +47,6 @@ ESP-12F pins used by the current native firmware:
 
 Start with `esphome/mcc-pro-native.yaml`.
 
-Component notes from the local datasheets are in `docs/components/`; renamed source PDFs are in `docs/datasheets/`; current UI captures are in `docs/screenshots/`.
+Component notes from the local datasheets are in `docs/components/`; renamed source PDFs are in `docs/datasheets/`; current UI captures are in `docs/screenshots/`; hardware photos and diagrams are in `docs/hardware/`.
 
-See `docs/esphome-native-diagnostics.md`, `docs/component-control-reference.md`, `docs/temperature-readout-tc1047.md` and `hardware/temperature_sensor_map.csv`.
+See `docs/esphome-native-diagnostics.md`, `docs/component-control-reference.md`, `docs/firmware-status-and-roadmap.md`, `docs/temperature-readout-tc1047.md` and `hardware/temperature_sensor_map.csv`.

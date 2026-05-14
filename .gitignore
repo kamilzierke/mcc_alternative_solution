@@ -1,5 +1,6 @@
 .superpowers/
 docs/superpowers/
+archive/
 .vscode/
 .pio/
 firmware/.pio/

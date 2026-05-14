@@ -87,6 +87,7 @@ These are bring-up tools. The helper defines PCA9685 access at `0x4F`, which is 
 Local datasheet summaries:
 
 - [BQ24195](../docs/components/bq24195.md)
+- [HC4067](../docs/components/hc4067.md)
 - [INA219](../docs/components/ina219.md)
 - [PCA9685](../docs/components/pca9685.md)
 
@@ -94,7 +95,7 @@ Screenshot index: [docs/screenshots](../docs/screenshots/README.md).
 
 ## Legacy config
 
-`mcc-pro.yaml` is the earlier direct-Wire diagnostic config. It currently references `mcc_diag_helpers_slot_queue.h`, which is not present in this tree, so treat it as historical context. The native variant is the current reference path.
+The earlier direct-Wire diagnostic config and helper were moved to the local ignored `archive/legacy-esphome/` folder. They are historical reference only and are not synchronized to GitHub. The native variant is the current reference path.
 
 ## TC1047 core facts
 

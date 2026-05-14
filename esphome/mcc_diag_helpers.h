@@ -1,5 +1,4 @@
 #pragma once
-
 #include "esphome.h"
 #include "esphome/components/web_server_base/web_server_base.h"
 #include <Arduino.h>
@@ -19,6 +18,8 @@ static constexpr uint8_t PIN_MUX_S0 = 13;
 static constexpr uint8_t PIN_MUX_S1 = 12;
 static constexpr uint8_t PIN_MUX_S2 = 14;
 static constexpr uint8_t PIN_MUX_S3 = 16;
+static constexpr uint8_t PIN_I2C_SDA = 4;
+static constexpr uint8_t PIN_I2C_SCL = 5;
 
 static constexpr uint8_t ADDR_PCF8574 = 0x27;
 static constexpr uint8_t ADDR_OLED    = 0x3C;
@@ -30,10 +31,24 @@ static constexpr uint8_t ADDR_TCA0    = 0x70;  // C1..C8 side, exact PCB ref sti
 static constexpr uint8_t ADDR_TCA1    = 0x71;  // U38: A0=5V, A1=GND, A2=GND; C9..C16 side.
 static constexpr uint8_t ADDR_BQ24195 = 0x6B;
 
+// PCF8574 is not register-based. Reads return physical pin levels, not a safe
+// output latch snapshot. Keep a conservative output policy: all pins high when
+// idle, only P0 low while enabling the TC1047 analog mux.
+static constexpr uint8_t PCF_SAFE_IDLE = 0xFF;
+static constexpr uint8_t PCF_TC1047_MUX_ENABLE = 0xFE;
+
 static constexpr uint8_t SLOT0_C16 = 15;
 
 static const char *TAG_BQWEB = "mcc_bqweb";
 static const char *TAG_BQFULL = "mcc_bqfull";
+
+#ifndef MCC_TC1047_ADC_FULL_SCALE_V
+#define MCC_TC1047_ADC_FULL_SCALE_V 3.02f
+#endif
+
+#ifndef MCC_TC1047_TEMP_OFFSET_C
+#define MCC_TC1047_TEMP_OFFSET_C 0.0f
+#endif
 
 struct SlotSnapshot {
   bool bq_ok{false};
@@ -46,6 +61,12 @@ struct SlotSnapshot {
   uint16_t ina_bus_raw{0};
   int16_t ina_shunt_raw{0};
   int a0_raw{-1};
+  bool temp_ok{false};
+  uint16_t temp_min_raw{0};
+  uint16_t temp_max_raw{0};
+  float temp_raw_avg{NAN};
+  float temp_v{NAN};
+  float temp_c{NAN};
   float bus_v{NAN};
   float shunt_mv{NAN};
 };
@@ -77,6 +98,14 @@ static constexpr BqRoute BQ_ROUTES[16] = {
 
 inline void feed() {
   yield();
+}
+
+inline void configure_wire_runtime_limits() {
+#if defined(ESP8266)
+  // Keep one bad downstream branch from blocking the ESP8266 for tens of seconds.
+  Wire.setClock(50000);
+  Wire.setClockStretchLimit(50000);
+#endif
 }
 
 inline bool i2c_present(uint8_t addr) {
@@ -129,6 +158,53 @@ inline bool i2c_read_reg16(uint8_t addr, uint8_t reg, uint16_t &value) {
 
 inline const char *yesno(bool v) { return v ? "YES" : "NO"; }
 
+inline void recover_i2c_bus(const char *reason) {
+#if defined(ESP8266)
+  ESP_LOGW(TAG_BQWEB, "I2C recovery start: %s SDA=%d SCL=%d",
+           reason ? reason : "?", digitalRead(PIN_I2C_SDA), digitalRead(PIN_I2C_SCL));
+
+  // If a selected TCA branch left a slave holding SDA low, manually clock SCL.
+  // This is cheap and often releases a slave stuck mid-byte.
+  pinMode(PIN_I2C_SDA, INPUT_PULLUP);
+  pinMode(PIN_I2C_SCL, INPUT_PULLUP);
+  delay(1);
+
+  for (uint8_t i = 0; i < 18 && digitalRead(PIN_I2C_SDA) == LOW; i++) {
+    pinMode(PIN_I2C_SCL, OUTPUT);
+    digitalWrite(PIN_I2C_SCL, LOW);
+    delayMicroseconds(10);
+    pinMode(PIN_I2C_SCL, INPUT_PULLUP);
+    delayMicroseconds(10);
+    yield();
+  }
+
+  // Generate a STOP condition: SDA low while SCL high, then release SDA.
+  pinMode(PIN_I2C_SDA, OUTPUT);
+  digitalWrite(PIN_I2C_SDA, LOW);
+  delayMicroseconds(10);
+  pinMode(PIN_I2C_SCL, INPUT_PULLUP);
+  delayMicroseconds(10);
+  pinMode(PIN_I2C_SDA, INPUT_PULLUP);
+  delayMicroseconds(10);
+
+  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+  configure_wire_runtime_limits();
+  delay(2);
+
+  // Try to leave both muxes disconnected. Do not call disable_tcas() here:
+  // recovery must not recurse if the bus is still sick.
+  bool tca0_off = i2c_write_u8(ADDR_TCA0, 0x00);
+  bool tca1_off = i2c_write_u8(ADDR_TCA1, 0x00);
+  delay(2);
+
+  ESP_LOGW(TAG_BQWEB, "I2C recovery done: SDA=%d SCL=%d TCA0_off=%s TCA1_off=%s",
+           digitalRead(PIN_I2C_SDA), digitalRead(PIN_I2C_SCL),
+           yesno(tca0_off), yesno(tca1_off));
+#else
+  (void) reason;
+#endif
+}
+
 inline void init_pins() {
   pinMode(PIN_MUX_S0, OUTPUT);
   pinMode(PIN_MUX_S1, OUTPUT);
@@ -139,6 +215,10 @@ inline void init_pins() {
   digitalWrite(PIN_MUX_S2, LOW);
   digitalWrite(PIN_MUX_S3, LOW);
   delay(5);
+
+  configure_wire_runtime_limits();
+  // Safe idle for PCF8574-controlled lines. Do not read-modify-write PCF8574.
+  i2c_write_u8(ADDR_PCF8574, PCF_SAFE_IDLE);
 }
 
 inline void mux_select(uint8_t ch) {
@@ -159,10 +239,21 @@ inline int adc_avg(uint8_t samples = 8) {
   return (int) lroundf((float) sum / (float) samples);
 }
 
-inline void disable_tcas() {
-  i2c_write_u8(ADDR_TCA0, 0x00);
-  i2c_write_u8(ADDR_TCA1, 0x00);
+inline bool disable_tcas() {
+  bool ok0 = i2c_write_u8(ADDR_TCA0, 0x00);
+  bool ok1 = i2c_write_u8(ADDR_TCA1, 0x00);
   delay(2);
+
+  if (!(ok0 && ok1)) {
+    ESP_LOGW(TAG_BQWEB, "disable_tcas failed: TCA0=%s TCA1=%s; attempting I2C recovery.",
+             yesno(ok0), yesno(ok1));
+    recover_i2c_bus("disable_tcas failed");
+    ok0 = i2c_write_u8(ADDR_TCA0, 0x00);
+    ok1 = i2c_write_u8(ADDR_TCA1, 0x00);
+    delay(2);
+  }
+
+  return ok0 && ok1;
 }
 
 inline const BqRoute &bq_route_for_slot(uint8_t slot0) {
@@ -186,9 +277,18 @@ inline const char *tca_ref_for_slot(uint8_t slot0) {
 }
 
 inline bool select_tca_slot(uint8_t slot0) {
-  disable_tcas();
+  if (!disable_tcas()) {
+    ESP_LOGW(TAG_BQWEB, "TCA select aborted for C%02u: cannot disconnect TCA muxes first.", slot0 + 1);
+    return false;
+  }
   uint8_t tca = tca_addr_for_slot(slot0);
   bool ok = i2c_write_u8(tca, tca_mask_for_slot(slot0));
+  if (!ok) {
+    ESP_LOGW(TAG_BQWEB, "TCA select write failed for C%02u: TCA=0x%02X ch=%u; attempting I2C recovery.",
+             slot0 + 1, tca, tca_channel_for_slot(slot0));
+    recover_i2c_bus("TCA select failed");
+    ok = i2c_write_u8(tca, tca_mask_for_slot(slot0));
+  }
   delay(4);
   return ok;
 }
@@ -249,14 +349,145 @@ struct BQFullRegs {
   uint8_t r[11]{0};
 };
 
+static SlotSnapshot bq_cached_slots[16];
+static BQFullRegs bq_cached_regs[16];
+static bool bq_cached_valid[16] = {false};
+static uint32_t bq_cached_read_ms[16] = {0};
+static volatile uint16_t slot_web_pending_mask = 0;
+static volatile bool slot_web_read_busy = false;
+static volatile uint8_t slot_web_pending_slot0 = 0;
+
 inline bool read_bq_full_regs(BQFullRegs &bq) {
-  bool ok = true;
   for (uint8_t reg = 0; reg <= 0x0A; reg++) {
-    ok &= i2c_read_reg8(ADDR_BQ24195, reg, bq.r[reg]);
+    if (!i2c_read_reg8(ADDR_BQ24195, reg, bq.r[reg])) {
+      bq.ok = false;
+      return false;
+    }
     yield();
   }
-  bq.ok = ok;
-  return ok;
+  bq.ok = true;
+  return true;
+}
+
+inline bool read_bq_web_regs(BQFullRegs &bq, SlotSnapshot &s) {
+  if (!i2c_read_reg8(ADDR_BQ24195, 0x00, bq.r[0x00])) { bq.ok = false; return false; }
+  yield();
+  if (!i2c_read_reg8(ADDR_BQ24195, 0x08, bq.r[0x08])) { bq.ok = false; return false; }
+  yield();
+  if (!i2c_read_reg8(ADDR_BQ24195, 0x09, bq.r[0x09])) { bq.ok = false; return false; }
+  yield();
+  if (!i2c_read_reg8(ADDR_BQ24195, 0x0A, bq.r[0x0A])) { bq.ok = false; return false; }
+  s.reg00 = bq.r[0x00];
+  s.reg08 = bq.r[0x08];
+  s.reg09a = bq.r[0x09];
+  s.reg09b = bq.r[0x09];
+  s.reg0a = bq.r[0x0A];
+  bq.ok = true;
+  return true;
+}
+
+inline bool capture_tc1047_slot(uint8_t slot0, SlotSnapshot &s) {
+  configure_wire_runtime_limits();
+
+  // PCF8574 hazard: reading it does NOT give a reliable output latch snapshot.
+  // Reads return physical pin levels. Writing that value back can accidentally
+  // drive unrelated PCF pins low and latch the board into a bad state that may
+  // survive ESP soft reset. Therefore use explicit safe states only.
+  if (!i2c_write_u8(ADDR_PCF8574, PCF_TC1047_MUX_ENABLE)) {
+    ESP_LOGW(TAG_BQWEB, "PCF8574 mux-enable write failed before TC1047 read for C%02u.", slot0 + 1);
+    return false;
+  }
+
+  delay(5);
+  mux_select(slot0 & 0x0F);
+  delay(5);
+
+  constexpr uint8_t samples = 8;
+  uint16_t min_raw = 1023;
+  uint16_t max_raw = 0;
+  uint32_t sum_raw = 0;
+
+  for (uint8_t i = 0; i < samples; i++) {
+    const uint16_t raw = analogRead(A0);
+    sum_raw += raw;
+    if (raw < min_raw) min_raw = raw;
+    if (raw > max_raw) max_raw = raw;
+    delay(2);
+    yield();
+  }
+
+  const bool idle_ok = i2c_write_u8(ADDR_PCF8574, PCF_SAFE_IDLE);
+  if (!idle_ok) {
+    ESP_LOGW(TAG_BQWEB, "PCF8574 safe-idle restore failed after TC1047 read for C%02u.", slot0 + 1);
+  }
+
+  s.temp_raw_avg = (float) sum_raw / (float) samples;
+  s.temp_min_raw = min_raw;
+  s.temp_max_raw = max_raw;
+  s.a0_raw = (int) lroundf(s.temp_raw_avg);
+  s.temp_v = s.temp_raw_avg * (MCC_TC1047_ADC_FULL_SCALE_V / 1023.0f);
+  s.temp_c = tc1047_temp_c_from_v(s.temp_v) + MCC_TC1047_TEMP_OFFSET_C;
+  s.temp_ok = true;
+  return idle_ok;
+}
+
+inline void publish_tc1047_slot_temperature(uint8_t slot0, const SlotSnapshot &s) {
+  if (!s.temp_ok) return;
+  switch (slot0 & 0x0F) {
+    case 0: id(c1_tc1047_temperature).publish_state(s.temp_c); break;
+    case 1: id(c2_tc1047_temperature).publish_state(s.temp_c); break;
+    case 2: id(c3_tc1047_temperature).publish_state(s.temp_c); break;
+    case 3: id(c4_tc1047_temperature).publish_state(s.temp_c); break;
+    case 4: id(c5_tc1047_temperature).publish_state(s.temp_c); break;
+    case 5: id(c6_tc1047_temperature).publish_state(s.temp_c); break;
+    case 6: id(c7_tc1047_temperature).publish_state(s.temp_c); break;
+    case 7: id(c8_tc1047_temperature).publish_state(s.temp_c); break;
+    case 8: id(c9_tc1047_temperature).publish_state(s.temp_c); break;
+    case 9: id(c10_tc1047_temperature).publish_state(s.temp_c); break;
+    case 10: id(c11_tc1047_temperature).publish_state(s.temp_c); break;
+    case 11: id(c12_tc1047_temperature).publish_state(s.temp_c); break;
+    case 12: id(c13_tc1047_temperature).publish_state(s.temp_c); break;
+    case 13: id(c14_tc1047_temperature).publish_state(s.temp_c); break;
+    case 14: id(c15_tc1047_temperature).publish_state(s.temp_c); break;
+    case 15: id(c16_tc1047_temperature).publish_state(s.temp_c); break;
+  }
+}
+
+inline bool capture_slot_web(uint8_t slot0, SlotSnapshot &s, BQFullRegs &bq) {
+  configure_wire_runtime_limits();
+  if (!disable_tcas()) {
+    ESP_LOGW(TAG_BQWEB, "Slot read aborted for C%02u: TCA muxes are not reachable.", slot0 + 1);
+    return false;
+  }
+
+  capture_tc1047_slot(slot0, s);
+
+  if (!select_tca_slot(slot0)) {
+    ESP_LOGW(TAG_BQWEB, "TCA select failed for C%02u: TCA=0x%02X ch=%u. Skipping BQ read.",
+             slot0 + 1, tca_addr_for_slot(slot0), tca_channel_for_slot(slot0));
+    const bool tcas_off_ok = disable_tcas();
+    if (tcas_off_ok) {
+      configure_ina219();
+      read_ina(s);
+    } else {
+      ESP_LOGW(TAG_BQWEB, "Skipping INA read after C%02u TCA select failure because TCA disconnect failed.", slot0 + 1);
+    }
+    return s.temp_ok || s.ina_ok;
+  }
+
+  s.bq_ok = i2c_present(ADDR_BQ24195);
+  if (s.bq_ok) {
+    read_bq_web_regs(bq, s);
+  }
+
+  const bool tcas_off_ok = disable_tcas();
+  if (tcas_off_ok) {
+    configure_ina219();
+    read_ina(s);
+  } else {
+    ESP_LOGW(TAG_BQWEB, "Skipping INA read after C%02u because TCA disconnect failed.", slot0 + 1);
+  }
+  return s.temp_ok || bq.ok || s.ina_ok;
 }
 
 inline void capture_slot_full(uint8_t slot0, SlotSnapshot &s, BQFullRegs &bq) {
@@ -308,25 +539,41 @@ inline void bq_web_print_cell_float(AsyncResponseStream *response, float value, 
   char buf[16];
   if (isnan(value)) {
     snprintf(buf, sizeof(buf), "nan");
+  } else if (decimals == 3) {
+    snprintf(buf, sizeof(buf), "%.3f", value);
+  } else if (decimals == 1) {
+    snprintf(buf, sizeof(buf), "%.1f", value);
   } else {
-    snprintf(buf, sizeof(buf), decimals == 3 ? "%.3f" : "%.2f", value);
+    snprintf(buf, sizeof(buf), "%.2f", value);
   }
   bq_web_print_cell(response, buf);
 }
 
-inline void bq_web_print_row(AsyncResponseStream *response, uint8_t slot0, const SlotSnapshot *s, const BQFullRegs *bq) {
-  const bool have_data = s != nullptr && bq != nullptr;
+inline bool slot_web_is_queued(uint8_t slot0) {
+  return (slot_web_pending_mask & ((uint16_t) 1U << (slot0 & 0x0F))) != 0;
+}
+
+inline void bq_web_print_row(AsyncResponseStream *response, uint8_t slot0, int8_t queued_slot0) {
+  const bool have_data = bq_cached_valid[slot0];
+  const SlotSnapshot *s = have_data ? &bq_cached_slots[slot0] : nullptr;
+  const BQFullRegs *bq = have_data ? &bq_cached_regs[slot0] : nullptr;
   response->print("<tr>");
   char buf[40];
   snprintf(buf, sizeof(buf), "C%02u", slot0 + 1);
   bq_web_print_cell(response, buf);
-  snprintf(buf, sizeof(buf), "<a href=\"/bq?slot=%u\">Read</a>", slot0 + 1);
+  if (slot_web_read_busy && slot0 == slot_web_pending_slot0) {
+    snprintf(buf, sizeof(buf), "Reading");
+  } else if (queued_slot0 == (int8_t) slot0 || slot_web_is_queued(slot0)) {
+    snprintf(buf, sizeof(buf), "Queued");
+  } else {
+    snprintf(buf, sizeof(buf), "<a href=\"/bq?slot=%u\">Read</a>", slot0 + 1);
+  }
   bq_web_print_cell(response, buf);
   bq_web_print_cell(response, tca_ref_for_slot(slot0));
   snprintf(buf, sizeof(buf), "0x%02X/%u", tca_addr_for_slot(slot0), tca_channel_for_slot(slot0));
   bq_web_print_cell(response, buf);
   if (!have_data) {
-    for (uint8_t i = 0; i < 13; i++) bq_web_print_cell(response, "-");
+    for (uint8_t i = 0; i < 15; i++) bq_web_print_cell(response, "-");
     response->print("</tr>");
     return;
   }
@@ -345,34 +592,114 @@ inline void bq_web_print_row(AsyncResponseStream *response, uint8_t slot0, const
   bq_web_print_cell_u8_hex(response, bq->r[0x0A]);
   bq_web_print_cell_float(response, s->bus_v, 3);
   bq_web_print_cell_float(response, s->shunt_mv, 2);
+  bq_web_print_cell_float(response, s->temp_c, 1);
   snprintf(buf, sizeof(buf), "%d", s->a0_raw);
+  bq_web_print_cell(response, buf);
+  snprintf(buf, sizeof(buf), "%lus", (unsigned long) ((millis() - bq_cached_read_ms[slot0]) / 1000UL));
   bq_web_print_cell(response, buf);
   response->print("</tr>");
 }
 
-inline void send_bq_table_response(AsyncWebServerRequest *request, int8_t selected_slot0) {
-  SlotSnapshot selected_s;
-  BQFullRegs selected_bq;
-  const bool read_slot = selected_slot0 >= 0 && selected_slot0 < 16;
-  if (read_slot) {
-    ESP_LOGW(TAG_BQWEB, "Serving /bq: reading one BQ24195 slot C%02u.", selected_slot0 + 1);
-    configure_ina219();
-    capture_slot_full((uint8_t) selected_slot0, selected_s, selected_bq);
-  } else {
-    ESP_LOGW(TAG_BQWEB, "Serving /bq: table only, no I2C read.");
+inline void send_bq_table_response(AsyncWebServerRequest *request, int8_t queued_slot0) {
+  ESP_LOGW(TAG_BQWEB, "Serving /bq: table response only, no I2C read in web context.");
+
+  static constexpr size_t BQ_TABLE_HTML_BUFFER_SIZE = 16384;
+
+  auto *response = request->beginResponseStream(
+    "text/html",
+    BQ_TABLE_HTML_BUFFER_SIZE
+  );
+
+  if (queued_slot0 >= 0) {
+    char msg[64];
+    snprintf(msg, sizeof(msg), "<p>Queued slot read for C%02u.</p>", static_cast<unsigned>(queued_slot0 + 1));
+    response->print(msg);
+  } else if (slot_web_read_busy || slot_web_pending_mask != 0) {
+    response->print("<p>Slot read queue active.</p>");
   }
-  auto *response = request->beginResponseStream("text/html");
-  response->print("<table border=\"1\"><tr><th>Slot</th><th>Read</th><th>Route</th><th>TCA/ch</th><th>BQ</th><th>REG00</th><th>REG08</th><th>Charge</th><th>DPM</th><th>PG</th><th>VSYS</th><th>REG09</th><th>Fault</th><th>REG0A</th><th>INA Bus V</th><th>Shunt mV</th><th>A0</th></tr>");
+
+  if (queued_slot0 >= 0 || slot_web_read_busy || slot_web_pending_mask != 0) {
+    response->print("<meta http-equiv=\"refresh\" content=\"2;url=/bq\">");
+  }
+
+  response->print("<p><a href=\"/bq?read_all=1\">Read all slots</a></p>");
+  response->print("<table border=\"1\"><tr><th>Slot</th><th>Read</th><th>Route</th><th>TCA/ch</th><th>BQ</th><th>REG00</th><th>REG08</th><th>Charge</th><th>DPM</th><th>PG</th><th>VSYS</th><th>REG09</th><th>Fault</th><th>REG0A</th><th>INA Bus V</th><th>Shunt mV</th><th>TC1047 C</th><th>A0</th><th>Age</th></tr>");
   for (uint8_t slot0 = 0; slot0 < 16; slot0++) {
-    if (read_slot && slot0 == (uint8_t) selected_slot0) {
-      bq_web_print_row(response, slot0, &selected_s, &selected_bq);
-    } else {
-      bq_web_print_row(response, slot0, nullptr, nullptr);
-    }
+    bq_web_print_row(response, slot0, queued_slot0);
   }
   response->print("</table>");
   request->send(response);
   ESP_LOGW(TAG_BQWEB, "Serving /bq complete.");
+}
+
+inline bool queue_slot_web_read(uint8_t slot0) {
+  if (slot0 >= 16) return false;
+  const uint16_t bit = ((uint16_t) 1U << slot0);
+  if ((slot_web_pending_mask & bit) != 0) return false;
+  if (slot_web_read_busy && slot_web_pending_slot0 == slot0) return false;
+  slot_web_pending_mask |= bit;
+  esphome::Application::wake_loop_any_context();
+  return true;
+}
+
+inline bool queue_slot_web_read_all() {
+  uint16_t mask = 0xFFFF;
+  if (slot_web_read_busy) {
+    mask &= (uint16_t) ~((uint16_t) 1U << (slot_web_pending_slot0 & 0x0F));
+  }
+  const uint16_t before = slot_web_pending_mask;
+  slot_web_pending_mask |= mask;
+  esphome::Application::wake_loop_any_context();
+  return slot_web_pending_mask != before;
+}
+
+inline void process_slot_web_read_request() {
+  if (slot_web_pending_mask == 0 || slot_web_read_busy) return;
+
+  uint8_t slot0 = 0;
+  uint16_t bit = 1;
+  while (slot0 < 16 && (slot_web_pending_mask & bit) == 0) {
+    slot0++;
+    bit <<= 1;
+  }
+  if (slot0 >= 16) {
+    slot_web_pending_mask = 0;
+    return;
+  }
+
+  slot_web_pending_mask &= (uint16_t) ~bit;
+  slot_web_pending_slot0 = slot0;
+  slot_web_read_busy = true;
+
+  ESP_LOGW(TAG_BQWEB, "Processing queued slot read for C%02u in main loop.", slot0 + 1);
+  const uint32_t start_ms = millis();
+
+  SlotSnapshot s;
+  BQFullRegs bq;
+  capture_slot_web(slot0, s, bq);
+
+  const uint32_t elapsed_ms = millis() - start_ms;
+  bq_cached_slots[slot0] = s;
+  bq_cached_regs[slot0] = bq;
+  bq_cached_valid[slot0] = true;
+  bq_cached_read_ms[slot0] = millis();
+  publish_tc1047_slot_temperature(slot0, s);
+
+  if (elapsed_ms > 1500UL) {
+    slot_web_pending_mask = 0;
+    ESP_LOGE(TAG_BQWEB,
+             "Slot read for C%02u took %lums. Cleared remaining queue to protect ESP8266 and recovering I2C.",
+             slot0 + 1, (unsigned long) elapsed_ms);
+    recover_i2c_bus("slow slot read");
+  }
+
+  slot_web_read_busy = false;
+  ESP_LOGW(TAG_BQWEB, "Queued slot read complete for C%02u in %lums.",
+           slot0 + 1, (unsigned long) elapsed_ms);
+}
+
+inline void process_bq_web_read_request() {
+  process_slot_web_read_request();
 }
 
 inline int8_t bq_web_slot_from_request(AsyncWebServerRequest *request) {
@@ -395,7 +722,26 @@ class BqTableHandler : public AsyncWebHandler {
       request->send(400, "text/plain", "slot must be 1..16");
       return;
     }
-    send_bq_table_response(request, slot0);
+
+    int8_t queued_slot0 = -1;
+    if (request->hasParam("read_all")) {
+      if (queue_slot_web_read_all()) {
+        ESP_LOGW(TAG_BQWEB, "Queued /bq read_all request for C01..C16.");
+      } else {
+        ESP_LOGW(TAG_BQWEB, "Ignored /bq read_all request: all slots already queued or being read.");
+      }
+    }
+
+    if (slot0 >= 0) {
+      if (queue_slot_web_read((uint8_t) slot0)) {
+        queued_slot0 = slot0;
+        ESP_LOGW(TAG_BQWEB, "Queued /bq slot read request for C%02u.", slot0 + 1);
+      } else {
+        ESP_LOGW(TAG_BQWEB, "Rejected /bq slot read request for C%02u: slot already queued or being read.", slot0 + 1);
+      }
+    }
+
+    send_bq_table_response(request, queued_slot0);
   }
 };
 

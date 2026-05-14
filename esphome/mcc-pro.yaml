@@ -3,7 +3,6 @@ substitutions:
   friendly_name: MCC Pro
   tc1047_adc_full_scale_v: "3.02"
   tc1047_temp_offset_c: "0.0"
-  tc1047_scan_interval: "10s"
   # Calibration rule:
   # tc1047_adc_full_scale_v = V_multimeter_at_mux_Z_or_TC1047_VOUT * 1023 / raw_avg
   # Current value 3.02 comes from: ESPHome 0.8761V vs multimeter 0.801V, after prior 3.30V assumption.
@@ -11,9 +10,13 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
-  comment: "MegaCell Charger Pro: sequential TC1047 temperature scan C1..C16 through 74HC4067, enabled by PCF8574 P0. Diagnostics retained."
+  comment: "MegaCell Charger Pro: on-demand per-slot TC1047 + BQ24195 diagnostics through mux/TCA."
   includes:
-    - mcc_diag_helpers.h
+    - mcc_diag_helpers_slot_queue.h
+  platformio_options:
+    build_flags:
+      - -DMCC_TC1047_ADC_FULL_SCALE_V=${tc1047_adc_full_scale_v}f
+      - -DMCC_TC1047_TEMP_OFFSET_C=${tc1047_temp_offset_c}f
   on_boot:
     priority: 600
     then:
@@ -61,7 +64,7 @@ i2c:
   # Keep boot light: enable only during hardware bring-up diagnostics.
   scan: false
   frequency: 50000Hz
-  timeout: 1s
+  timeout: 100ms
 
 globals:
   - id: oled_page
@@ -74,122 +77,21 @@ globals:
     restore_value: false
     initial_value: "false"
 
-script:
-  - id: scan_all_tc1047_temperatures
-    mode: single
+interval:
+  - interval: 250ms
+    startup_delay: 10s
     then:
       - lambda: |-
-          static const char *TAG = "mcc_temp_scan";
+          mccdiag::process_bq_web_read_request();
 
-          // Temperature mux enable line:
-          // 74HC4067 E pin is active LOW.
-          // E -> PCF8574 IC25 pin 4 = P0.
-          // R4 = 10k pull-up to VCC, therefore default PCF 0xFF keeps mux disabled.
-          uint8_t pcf_before = 0xFF;
-          bool pcf_read_ok = mccdiag::i2c_read_u8(mccdiag::ADDR_PCF8574, pcf_before);
-          if (!pcf_read_ok) {
-            ESP_LOGE(TAG, "PCF8574 0x27 read failed; cannot enable TC1047 mux");
-            return;
-          }
-
-          uint8_t pcf_enable = pcf_before & 0xFE;  // P0 LOW, preserve P1..P7.
-          bool pcf_enable_ok = mccdiag::i2c_write_u8(mccdiag::ADDR_PCF8574, pcf_enable);
-          if (!pcf_enable_ok) {
-            ESP_LOGE(TAG, "PCF8574 write enable failed: before=0x%02X enable=0x%02X", pcf_before, pcf_enable);
-            return;
-          }
-
-          delay(10);
-
-          float temps[16];
-          float volts[16];
-          float raws[16];
-          uint16_t mins[16];
-          uint16_t maxs[16];
-
-          constexpr uint8_t samples = 32;
-          const float adc_full_scale = ${tc1047_adc_full_scale_v}f;
-          const float temp_offset = ${tc1047_temp_offset_c}f;
-
-          for (uint8_t ch = 0; ch < 16; ch++) {
-            // Mapping confirmed for C8 and inferred linearly for the same mux:
-            // C1-Y0, C2-Y1, ..., C8-Y7, ..., C16-Y15.
-            mccdiag::mux_select(ch);
-            delay(25);
-
-            uint16_t min_raw = 1023;
-            uint16_t max_raw = 0;
-            uint32_t sum_raw = 0;
-
-            for (uint8_t i = 0; i < samples; i++) {
-              uint16_t raw = analogRead(A0);
-              sum_raw += raw;
-              if (raw < min_raw) min_raw = raw;
-              if (raw > max_raw) max_raw = raw;
-              delay(4);
-              yield();
-            }
-
-            float raw_avg = (float) sum_raw / (float) samples;
-            float voltage = raw_avg * (adc_full_scale / 1023.0f);
-            float temp_c = ((voltage - 0.500f) * 100.0f) + temp_offset;
-
-            temps[ch] = temp_c;
-            volts[ch] = voltage;
-            raws[ch] = raw_avg;
-            mins[ch] = min_raw;
-            maxs[ch] = max_raw;
-
-            ESP_LOGI(TAG,
-                     "C%02u/Y%02u TC1047: raw_avg=%.2f min=%u max=%u voltage=%.4fV temp=%.1fC",
-                     ch + 1, ch, raw_avg, min_raw, max_raw, voltage, temp_c);
-          }
-
-          bool pcf_restore_ok = mccdiag::i2c_write_u8(mccdiag::ADDR_PCF8574, pcf_before);
-          if (!pcf_restore_ok) {
-            ESP_LOGE(TAG, "PCF8574 restore failed: attempted restore=0x%02X", pcf_before);
-          }
-
-          id(c1_tc1047_temperature).publish_state(temps[0]);
-          id(c2_tc1047_temperature).publish_state(temps[1]);
-          id(c3_tc1047_temperature).publish_state(temps[2]);
-          id(c4_tc1047_temperature).publish_state(temps[3]);
-          id(c5_tc1047_temperature).publish_state(temps[4]);
-          id(c6_tc1047_temperature).publish_state(temps[5]);
-          id(c7_tc1047_temperature).publish_state(temps[6]);
-          id(c8_tc1047_temperature).publish_state(temps[7]);
-          id(c9_tc1047_temperature).publish_state(temps[8]);
-          id(c10_tc1047_temperature).publish_state(temps[9]);
-          id(c11_tc1047_temperature).publish_state(temps[10]);
-          id(c12_tc1047_temperature).publish_state(temps[11]);
-          id(c13_tc1047_temperature).publish_state(temps[12]);
-          id(c14_tc1047_temperature).publish_state(temps[13]);
-          id(c15_tc1047_temperature).publish_state(temps[14]);
-          id(c16_tc1047_temperature).publish_state(temps[15]);
-
-          ESP_LOGW(TAG,
-                   "TC1047 scan complete: PCF before=0x%02X enable=0x%02X restore=%s ADC_full_scale=%.3fV mapping C1-Y0..C16-Y15",
-                   pcf_before, pcf_enable, pcf_restore_ok ? "OK" : "FAIL", adc_full_scale);
-
-interval:
   - interval: 2s
     startup_delay: 10s
     then:
       - lambda: |-
           if (!id(boot_services_ready) && id(mcc_wifi).is_connected() && id(api_server).is_connected()) {
             id(boot_services_ready) = true;
-            ESP_LOGW("mcc_boot", "WiFi and API are connected; enabling OLED updates and TC1047 scans.");
+            ESP_LOGW("mcc_boot", "WiFi and API are connected; enabling OLED updates and on-demand slot reads.");
           }
-
-  - interval: ${tc1047_scan_interval}
-    startup_delay: 60s
-    then:
-      - if:
-          condition:
-            lambda: |-
-              return id(boot_services_ready);
-          then:
-            - script.execute: scan_all_tc1047_temperatures
 
   - interval: 5s
     startup_delay: 30s
@@ -515,7 +417,7 @@ display:
           it.print(0, 35, id(oled_font), "RSSI: -- dBm");
         }
         it.printf(0, 45, id(oled_font), "API: %s", api_ok ? "ok" : "down");
-        it.printf(0, 55, id(oled_font), "Scan: ${tc1047_scan_interval}");
+        it.print(0, 55, id(oled_font), "Read: on-demand");
       } else if (id(oled_page) == 1) {
         it.print(0, 15, id(oled_font), "Temps C01-C08");
         it.printf(0, 25, id(oled_font), "C01 %s C02 %s", temp_text(id(c1_tc1047_temperature)), temp_text(id(c2_tc1047_temperature)));
@@ -535,10 +437,11 @@ button:
     name: "Restart"
 
   - platform: template
-    name: "Read All TC1047 Temperatures Now"
-    icon: "mdi:thermometer-lines"
+    name: "Queue Read All MCC Slots"
+    icon: "mdi:table-sync"
     on_press:
-      - script.execute: scan_all_tc1047_temperatures
+      - lambda: |-
+          mccdiag::queue_slot_web_read_all();
 
   - platform: template
     name: "Read C16 BQ24195 Diagnostics"

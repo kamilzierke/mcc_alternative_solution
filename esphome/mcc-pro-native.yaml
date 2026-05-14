@@ -3,6 +3,10 @@ substitutions:
   friendly_name: MCC Pro
   tc1047_adc_full_scale_v: "3.02"
   tc1047_temp_offset_c: "0.0"
+  external_temp_adc_full_scale_v: "3.02"
+  external_temp_offset_c: "0.0"
+  ina219_internal_shunt_mohm: "60.0"
+  ina219_external_shunt_mohm: "60.0"
   # Calibration rule:
   # tc1047_adc_full_scale_v = V_multimeter_at_mux_Z_or_TC1047_VOUT * 1023 / raw_avg
   # Current value 3.02 comes from: ESPHome 0.8761V vs multimeter 0.801V, after prior 3.30V assumption.
@@ -17,6 +21,10 @@ esphome:
     build_flags:
       - -DMCC_TC1047_ADC_FULL_SCALE_V=${tc1047_adc_full_scale_v}f
       - -DMCC_TC1047_TEMP_OFFSET_C=${tc1047_temp_offset_c}f
+      - -DMCC_EXTERNAL_TEMP_ADC_FULL_SCALE_V=${external_temp_adc_full_scale_v}f
+      - -DMCC_EXTERNAL_TEMP_OFFSET_C=${external_temp_offset_c}f
+      - -DMCC_INA219_INTERNAL_SHUNT_MOHM=${ina219_internal_shunt_mohm}f
+      - -DMCC_INA219_EXTERNAL_SHUNT_MOHM=${ina219_external_shunt_mohm}f
   on_boot:
     priority: 600
     then:
@@ -55,7 +63,13 @@ web_server:
   include_internal: true
 
 # I2C observed on MCC Pro ESP8266 board.
-# Expected main-bus devices: 0x27 PCF8574, 0x3C SSD1306, 0x41 INA219, 0x4F PCA9685, 0x70/0x71 TCA9548A.
+# Expected main-bus devices: 0x27 PCF8574, 0x3C SSD1306, 0x41 INA219 external/U3, 0x4F INA219 internal/U2 or PCA9685, 0x70/0x71 TCA9548A.
+# HC4067 enables are driven by helper full-byte PCF8574 writes, one active-low output per mux:
+#   P0 LOW -> U10  HC4067, internal TC1047 x16 temperature mux
+#   P1 LOW -> U10E HC4067, external temperature x16 mux
+#   P2 LOW -> U34  HC4067, raw analog diagnostic mux, exact purpose still being traced
+#   P3 LOW -> U3   HC4067, external-cell voltage path into INA219 #1 @ 0x41
+#   P4 LOW -> U2   HC4067, internal-slot battery voltage path into INA219 #2 @ 0x4F
 i2c:
   - id: main_i2c
     sda: GPIO4
@@ -116,7 +130,7 @@ pcf8574:
 switch:
   - platform: gpio
     id: tc1047_mux_enable
-    name: "TC1047 Analog Mux Enable"
+    name: "Legacy U10 TC1047 Mux Enable P0"
     internal: true
     restore_mode: ALWAYS_OFF
     pin:
@@ -127,9 +141,16 @@ switch:
       inverted: true
 
 i2c_device:
-  - id: ina_u47
+  - id: ina_external_u3
     i2c_id: main_i2c
     address: 0x41
+
+  - id: ina_internal_u2
+    i2c_id: main_i2c
+    address: 0x4F
+
+  # U34 is an HC4067 mux selected by PCF8574 P2 LOW, not an INA219.
+  # NOTE: if PCA9685 is also really strapped to 0x4F, it collides with internal INA219 #2.
 
   - id: bq_c01
     i2c_id: tca0_ch0
@@ -198,6 +219,17 @@ interval:
     then:
       - lambda: |-
           mccdiag::process_bq_web_read_request();
+
+  - interval: 10s
+    startup_delay: 20s
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(boot_services_ready);
+          then:
+            - lambda: |-
+                mccdiag::queue_auto_poll_all_slots();
 
   - interval: 2s
     startup_delay: 10s
@@ -445,8 +477,503 @@ sensor:
     update_interval: never
 
   - platform: template
+    id: c1_ina_bus_voltage
+    name: "C1 Internal INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c1_ina_shunt_voltage
+    name: "C1 Internal INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c1_ina_current
+    name: "C1 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c2_ina_bus_voltage
+    name: "C2 Internal INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c2_ina_shunt_voltage
+    name: "C2 Internal INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c2_ina_current
+    name: "C2 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c3_ina_bus_voltage
+    name: "C3 Internal INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c3_ina_shunt_voltage
+    name: "C3 Internal INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c3_ina_current
+    name: "C3 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c4_ina_bus_voltage
+    name: "C4 Internal INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c4_ina_shunt_voltage
+    name: "C4 Internal INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c4_ina_current
+    name: "C4 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c5_ina_bus_voltage
+    name: "C5 Internal INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c5_ina_shunt_voltage
+    name: "C5 Internal INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c5_ina_current
+    name: "C5 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c6_ina_bus_voltage
+    name: "C6 Internal INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c6_ina_shunt_voltage
+    name: "C6 Internal INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c6_ina_current
+    name: "C6 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c7_ina_bus_voltage
+    name: "C7 Internal INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c7_ina_shunt_voltage
+    name: "C7 Internal INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c7_ina_current
+    name: "C7 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c8_ina_bus_voltage
+    name: "C8 Internal INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c8_ina_shunt_voltage
+    name: "C8 Internal INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c8_ina_current
+    name: "C8 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c9_ina_bus_voltage
+    name: "C9 Internal INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c9_ina_shunt_voltage
+    name: "C9 Internal INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c9_ina_current
+    name: "C9 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c10_ina_bus_voltage
+    name: "C10 Internal INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c10_ina_shunt_voltage
+    name: "C10 Internal INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c10_ina_current
+    name: "C10 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c11_ina_bus_voltage
+    name: "C11 Internal INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c11_ina_shunt_voltage
+    name: "C11 Internal INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c11_ina_current
+    name: "C11 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c12_ina_bus_voltage
+    name: "C12 Internal INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c12_ina_shunt_voltage
+    name: "C12 Internal INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c12_ina_current
+    name: "C12 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c13_ina_bus_voltage
+    name: "C13 Internal INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c13_ina_shunt_voltage
+    name: "C13 Internal INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c13_ina_current
+    name: "C13 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c14_ina_bus_voltage
+    name: "C14 Internal INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c14_ina_shunt_voltage
+    name: "C14 Internal INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c14_ina_current
+    name: "C14 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
+    id: c15_ina_bus_voltage
+    name: "C15 Internal INA219 Bus Voltage"
+    icon: "mdi:flash-triangle"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    update_interval: never
+
+  - platform: template
+    id: c15_ina_shunt_voltage
+    name: "C15 Internal INA219 Shunt Voltage"
+    icon: "mdi:sine-wave"
+    entity_category: diagnostic
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "mV"
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c15_ina_current
+    name: "C15 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
+    update_interval: never
+
+  - platform: template
     id: c16_ina_bus_voltage
-    name: "C16 INA219 Bus Voltage"
+    name: "C16 Internal INA219 Bus Voltage"
     icon: "mdi:flash-triangle"
     entity_category: diagnostic
     device_class: voltage
@@ -457,13 +984,24 @@ sensor:
 
   - platform: template
     id: c16_ina_shunt_voltage
-    name: "C16 INA219 Shunt Voltage"
+    name: "C16 Internal INA219 Shunt Voltage"
     icon: "mdi:sine-wave"
     entity_category: diagnostic
     device_class: voltage
     state_class: measurement
     unit_of_measurement: "mV"
     accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    id: c16_ina_current
+    name: "C16 Internal INA219 Current"
+    icon: "mdi:current-dc"
+    entity_category: diagnostic
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "mA"
+    accuracy_decimals: 1
     update_interval: never
 
 text_sensor:

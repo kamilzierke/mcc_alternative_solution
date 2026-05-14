@@ -1,2 +1,6 @@
 .superpowers/
+.vscode/
 esphome/secrets.yaml
+.pio/
+firmware/.pio/
+.~lock.*#

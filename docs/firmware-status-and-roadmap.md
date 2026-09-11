@@ -19,18 +19,6 @@ Current confirmed scope:
 - OLED status display.
 - Web endpoints `/bq`, `/status` and `/c16`.
 
-## Archived local material
-
-The earlier PlatformIO read-only skeleton and direct-Wire ESPHome experiment have been moved to the local `archive/` folder. That folder is intentionally ignored and is not synchronized to GitHub.
-
-Archived locally:
-
-- `archive/firmware-readonly-v0.3/` - old PlatformIO read-only skeleton and notes.
-- `archive/legacy-esphome/` - old direct-Wire ESPHome YAML/helper.
-- `archive/extracted-sources-placeholder/` - placeholder note from earlier extracted-source import.
-
-These artifacts remain useful as historical reference, but they are not the current implementation path.
-
 ## Current safety boundaries
 
 Still unresolved or experimental:

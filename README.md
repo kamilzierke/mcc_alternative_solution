@@ -45,9 +45,9 @@ ESP-12F pins used by the current native firmware:
 | GPIO1 / TX0 | OUT | UART logger at 115200 baud |
 | GPIO3 / RX0 | IN | UART0/programming path, not application logic |
 
-Start with `esphome/mcc-pro-native.yaml`.
+The active firmware source is `esphome/mcc-pro-native.yaml` with `esphome/mcc_diag_helpers_native.h`.
 
-## Project workflow and safety
+## Configuration and safety
 
 Firmware validation may use the local ESPHome configuration and compiler. Do not flash firmware, invoke OTA or perform live hardware probing until the relevant hardware procedure has been reviewed.
 
@@ -56,6 +56,7 @@ Create a local `esphome/secrets.yaml` from [esphome/secrets.example.yaml](esphom
 ```powershell
 esphome config esphome\mcc-pro-native.yaml
 esphome compile esphome\mcc-pro-native.yaml
+& .\scripts\verify-repository.ps1
 ```
 
 ## Documentation and project policy

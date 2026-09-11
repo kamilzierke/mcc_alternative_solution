@@ -93,10 +93,6 @@ Local datasheet summaries:
 
 Screenshot index: [docs/screenshots](../docs/screenshots/README.md).
 
-## Legacy config
-
-The earlier direct-Wire diagnostic config and helper were moved to the local ignored `archive/legacy-esphome/` folder. They are historical reference only and are not synchronized to GitHub. The native variant is the current reference path.
-
 ## TC1047 core facts
 
 - U10 = 74HC4067 temperature mux.

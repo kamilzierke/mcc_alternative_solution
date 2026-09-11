@@ -9,6 +9,8 @@ All notable user-visible changes and material evidence updates are documented he
 - Added an outcome-oriented public roadmap with safety gates for diagnostic and control work.
 - Added contributor and security guidance for private configuration, synthetic validation and hardware evidence.
 - Added ignored local artifact paths for diagnostic logs and reports.
+- Removed public references to local archive structure and historical workspace material.
+- Added a hardware-independent repository quality gate for private-file tracking, public documentation targets and patch formatting.
 
 ### Current diagnostic baseline
 

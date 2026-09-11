@@ -18,6 +18,13 @@ struct ComponentStatus {
   const char *detail;
 };
 
+enum class ComparisonState : uint8_t {
+  Awaiting,
+  Match,
+  Mismatch,
+  Fault,
+};
+
 inline const char *state_name(ComponentState state) {
   switch (state) {
     case ComponentState::Unknown: return "unknown";
@@ -31,6 +38,16 @@ inline const char *state_name(ComponentState state) {
 
 inline bool can_issue_output_command(ComponentState state, bool read_only) {
   return !read_only && state == ComponentState::Ready;
+}
+
+inline const char *comparison_name(ComparisonState state) {
+  switch (state) {
+    case ComparisonState::Awaiting: return "awaiting";
+    case ComparisonState::Match: return "match";
+    case ComparisonState::Mismatch: return "mismatch";
+    case ComparisonState::Fault: return "fault";
+  }
+  return "awaiting";
 }
 
 inline const char *protocol_banner(const char *version) {

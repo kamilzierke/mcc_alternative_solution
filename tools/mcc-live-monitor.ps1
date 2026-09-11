@@ -8,8 +8,8 @@ $script:logWriter = $null
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'MCC Pro Live Monitor'
 $form.StartPosition = 'CenterScreen'
-$form.MinimumSize = New-Object System.Drawing.Size(980, 650)
-$form.Size = New-Object System.Drawing.Size(1200, 780)
+$form.MinimumSize = New-Object System.Drawing.Size(1180, 760)
+$form.Size = New-Object System.Drawing.Size(1440, 900)
 $form.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 
 $topPanel = New-Object System.Windows.Forms.FlowLayoutPanel
@@ -57,11 +57,25 @@ $connectionLabel.ForeColor = [System.Drawing.Color]::Firebrick
 $connectionLabel.Margin = '16,7,0,0'
 $topPanel.Controls.Add($connectionLabel)
 
-$split = New-Object System.Windows.Forms.SplitContainer
-$split.Dock = 'Fill'
-$split.Orientation = 'Horizontal'
-$split.SplitterDistance = 270
-$form.Controls.Add($split)
+$viewTabs = New-Object System.Windows.Forms.TabControl
+$viewTabs.Dock = 'Fill'
+$form.Controls.Add($viewTabs)
+
+$overviewTab = New-Object System.Windows.Forms.TabPage
+$overviewTab.Text = 'Live Overview'
+$viewTabs.TabPages.Add($overviewTab)
+$slotsTab = New-Object System.Windows.Forms.TabPage
+$slotsTab.Text = 'Slots C01-C16'
+$viewTabs.TabPages.Add($slotsTab)
+$logTab = New-Object System.Windows.Forms.TabPage
+$logTab.Text = 'UART Log'
+$viewTabs.TabPages.Add($logTab)
+
+$overviewSplit = New-Object System.Windows.Forms.SplitContainer
+$overviewSplit.Dock = 'Fill'
+$overviewSplit.Orientation = 'Vertical'
+$overviewSplit.SplitterDistance = 900
+$overviewTab.Controls.Add($overviewSplit)
 
 $statusGrid = New-Object System.Windows.Forms.DataGridView
 $statusGrid.Dock = 'Fill'
@@ -72,11 +86,71 @@ $statusGrid.AllowUserToResizeRows = $false
 $statusGrid.RowHeadersVisible = $false
 $statusGrid.AutoSizeColumnsMode = 'Fill'
 [void]$statusGrid.Columns.Add('Component', 'Component')
-[void]$statusGrid.Columns.Add('Expected', 'Expected mode')
-[void]$statusGrid.Columns.Add('Live', 'Live state')
+[void]$statusGrid.Columns.Add('Observed', 'Observed')
+[void]$statusGrid.Columns.Add('Requested', 'Requested')
+[void]$statusGrid.Columns.Add('Status', 'Status')
+[void]$statusGrid.Columns.Add('Match', 'Match')
 [void]$statusGrid.Columns.Add('Evidence', 'Latest evidence')
 $statusGrid.Columns['Evidence'].FillWeight = 220
-$split.Panel1.Controls.Add($statusGrid)
+$overviewSplit.Panel1.Controls.Add($statusGrid)
+
+$mirrorPanel = New-Object System.Windows.Forms.Panel
+$mirrorPanel.Dock = 'Fill'
+$mirrorPanel.Padding = New-Object System.Windows.Forms.Padding(12)
+$mirrorPanel.BackColor = [System.Drawing.Color]::FromArgb(35, 39, 46)
+$overviewSplit.Panel2.Controls.Add($mirrorPanel)
+
+$mirrorTitle = New-Object System.Windows.Forms.Label
+$mirrorTitle.Text = 'MCC slot mirror'
+$mirrorTitle.ForeColor = [System.Drawing.Color]::WhiteSmoke
+$mirrorTitle.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 11)
+$mirrorTitle.Dock = 'Top'
+$mirrorTitle.Height = 30
+$mirrorPanel.Controls.Add($mirrorTitle)
+
+$mirrorGrid = New-Object System.Windows.Forms.TableLayoutPanel
+$mirrorGrid.Dock = 'Fill'
+$mirrorGrid.ColumnCount = 4
+$mirrorGrid.RowCount = 4
+for ($index = 0; $index -lt 4; $index++) {
+    $mirrorGrid.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 25)))
+    $mirrorGrid.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 25)))
+}
+$mirrorPanel.Controls.Add($mirrorGrid)
+
+$slotTiles = @{}
+for ($slotNumber = 1; $slotNumber -le 16; $slotNumber++) {
+    $slotName = 'C{0:d2}' -f $slotNumber
+    $tile = New-Object System.Windows.Forms.Label
+    $tile.Text = "$slotName`nawaiting"
+    $tile.TextAlign = 'MiddleCenter'
+    $tile.Dock = 'Fill'
+    $tile.Margin = New-Object System.Windows.Forms.Padding(4)
+    $tile.BorderStyle = 'FixedSingle'
+    $tile.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 10)
+    $tile.BackColor = [System.Drawing.Color]::FromArgb(92, 78, 35)
+    $tile.ForeColor = [System.Drawing.Color]::WhiteSmoke
+    $slotTiles[$slotName] = $tile
+    $mirrorGrid.Controls.Add($tile, (($slotNumber - 1) % 4), [math]::Floor(($slotNumber - 1) / 4))
+}
+
+$slotGrid = New-Object System.Windows.Forms.DataGridView
+$slotGrid.Dock = 'Fill'
+$slotGrid.ReadOnly = $true
+$slotGrid.AllowUserToAddRows = $false
+$slotGrid.AllowUserToDeleteRows = $false
+$slotGrid.AllowUserToResizeRows = $false
+$slotGrid.RowHeadersVisible = $false
+$slotGrid.AutoSizeColumnsMode = 'Fill'
+[void]$slotGrid.Columns.Add('Slot', 'Slot')
+[void]$slotGrid.Columns.Add('Route', 'BQ route')
+[void]$slotGrid.Columns.Add('Observed', 'Observed')
+[void]$slotGrid.Columns.Add('Requested', 'Requested')
+[void]$slotGrid.Columns.Add('Status', 'Status')
+[void]$slotGrid.Columns.Add('Match', 'Match')
+[void]$slotGrid.Columns.Add('Evidence', 'Latest evidence')
+$slotGrid.Columns['Evidence'].FillWeight = 180
+$slotsTab.Controls.Add($slotGrid)
 
 $logBox = New-Object System.Windows.Forms.RichTextBox
 $logBox.Dock = 'Fill'
@@ -84,19 +158,54 @@ $logBox.ReadOnly = $true
 $logBox.BackColor = [System.Drawing.Color]::FromArgb(25, 29, 35)
 $logBox.ForeColor = [System.Drawing.Color]::Gainsboro
 $logBox.Font = New-Object System.Drawing.Font('Cascadia Mono', 9)
-$split.Panel2.Controls.Add($logBox)
+$logTab.Controls.Add($logBox)
 
-function Set-ComponentStatus([string]$name, [string]$expected, [string]$live, [string]$evidence) {
+function Get-StateColor([string]$match) {
+    switch ($match) {
+        'match' { return [System.Drawing.Color]::Honeydew }
+        'awaiting' { return [System.Drawing.Color]::LemonChiffon }
+        default { return [System.Drawing.Color]::MistyRose }
+    }
+}
+
+function Set-ComponentStatus([string]$name, [string]$observed, [string]$requested, [string]$status, [string]$match, [string]$evidence) {
     $row = $null
     foreach ($candidate in $statusGrid.Rows) {
         if ($candidate.Cells['Component'].Value -eq $name) { $row = $candidate; break }
     }
     if ($null -eq $row) { $row = $statusGrid.Rows[$statusGrid.Rows.Add()] }
     $row.Cells['Component'].Value = $name
-    $row.Cells['Expected'].Value = $expected
-    $row.Cells['Live'].Value = $live
+    $row.Cells['Observed'].Value = $observed
+    $row.Cells['Requested'].Value = $requested
+    $row.Cells['Status'].Value = $status
+    $row.Cells['Match'].Value = $match
     $row.Cells['Evidence'].Value = $evidence
-    $row.DefaultCellStyle.BackColor = if ($live -eq $expected) { [System.Drawing.Color]::Honeydew } elseif ($live -eq 'awaiting') { [System.Drawing.Color]::LemonChiffon } else { [System.Drawing.Color]::MistyRose }
+    $row.DefaultCellStyle.BackColor = Get-StateColor $match
+}
+
+function Set-SlotStatus([string]$slot, [string]$observed, [string]$requested, [string]$status, [string]$match, [string]$evidence) {
+    $row = $null
+    foreach ($candidate in $slotGrid.Rows) {
+        if ($candidate.Cells['Slot'].Value -eq $slot) { $row = $candidate; break }
+    }
+    if ($null -eq $row) { $row = $slotGrid.Rows[$slotGrid.Rows.Add()] }
+    $slotNumber = [int]$slot.Substring(1)
+    $route = if ($slotNumber -le 8) { 'TCA 0x70 / ch {0}' -f ($slotNumber - 1) } else { 'TCA 0x71 / ch {0}' -f ($slotNumber - 9) }
+    $row.Cells['Slot'].Value = $slot
+    $row.Cells['Route'].Value = $route
+    $row.Cells['Observed'].Value = $observed
+    $row.Cells['Requested'].Value = $requested
+    $row.Cells['Status'].Value = $status
+    $row.Cells['Match'].Value = $match
+    $row.Cells['Evidence'].Value = $evidence
+    $row.DefaultCellStyle.BackColor = Get-StateColor $match
+    $slotTiles[$slot].Text = "$slot`n$observed`n$match"
+    $slotTiles[$slot].BackColor = switch ($match) {
+        'match' { [System.Drawing.Color]::FromArgb(45, 106, 66) }
+        'fault' { [System.Drawing.Color]::FromArgb(137, 47, 47) }
+        'mismatch' { [System.Drawing.Color]::FromArgb(137, 72, 35) }
+        default { [System.Drawing.Color]::FromArgb(92, 78, 35) }
+    }
 }
 
 function Add-LogLine([string]$line) {
@@ -108,23 +217,24 @@ function Add-LogLine([string]$line) {
 }
 
 function Parse-MccLine([string]$line) {
-    $fields = $line -split '\|', 5
+    $fields = $line -split '\|', 8
     if ($fields.Count -lt 2 -or $fields[0] -ne 'MCC') {
-        Set-ComponentStatus 'protocol' 'MCC structured status' 'awaiting' 'Received legacy or unrecognized UART text.'
+        Set-ComponentStatus 'protocol' 'unrecognized' 'MCC frames' 'unrecognized UART text' 'awaiting' 'The line remains raw evidence in the UART Log tab.'
         return
     }
     switch ($fields[1]) {
         'HELLO' {
-            Set-ComponentStatus 'firmware' 'read-only' 'read-only' ($fields | Select-Object -Skip 2) -join ' '
+            Set-ComponentStatus 'firmware' 'read-only' 'read-only' 'banner received' 'match' (($fields | Select-Object -Skip 2) -join ' ')
         }
         'STATUS' {
-            if ($fields.Count -ge 5) {
-                $expected = if ($fields[2] -in @('outputs', 'mux-select', 'firmware')) { 'read-only' } else { 'ready' }
-                Set-ComponentStatus $fields[2] $expected $fields[3] $fields[4]
-            }
+            if ($fields.Count -ge 8) { Set-ComponentStatus $fields[2] $fields[3] $fields[4] $fields[5] $fields[6] $fields[7] }
+            elseif ($fields.Count -ge 5) { Set-ComponentStatus $fields[2] $fields[3] 'unknown' $fields[4] 'awaiting' 'Legacy status frame without comparison fields.' }
+        }
+        'SLOT' {
+            if ($fields.Count -ge 8) { Set-SlotStatus $fields[2] $fields[3] $fields[4] $fields[5] $fields[6] $fields[7] }
         }
         'EVENT' {
-            if ($fields.Count -ge 5) { Set-ComponentStatus $fields[3] 'ready' $fields[2].ToLowerInvariant() $fields[4] }
+            if ($fields.Count -ge 5) { Set-ComponentStatus $fields[3] $fields[2].ToLowerInvariant() 'ready' $fields[4] 'awaiting' $fields[4] }
         }
     }
 }
@@ -162,7 +272,7 @@ $connectButton.Add_Click({
         $script:serialPort.RtsEnable = $false
         $script:serialPort.Handshake = [System.IO.Ports.Handshake]::None
         $script:serialPort.Open()
-        Set-ComponentStatus 'protocol' 'MCC structured status' 'awaiting' 'Waiting for MCC firmware status frames.'
+        Set-ComponentStatus 'protocol' 'connected' 'MCC frames' 'waiting for frames' 'awaiting' 'DTR and RTS are disabled; the monitor does not send UART data.'
         $connectButton.Text = 'Disconnect'
         $connectionLabel.Text = "Connected read-only: $($portSelector.SelectedItem)"
         $connectionLabel.ForeColor = [System.Drawing.Color]::ForestGreen
@@ -181,6 +291,23 @@ $form.Add_FormClosing({
     if ($script:logWriter) { $script:logWriter.Dispose() }
 })
 
-Set-ComponentStatus 'firmware' 'read-only' 'awaiting' 'Connect to receive live status.'
-Set-ComponentStatus 'outputs' 'read-only' 'awaiting' 'No output command is available in the monitor.'
+Set-ComponentStatus 'firmware' 'awaiting' 'read-only' 'waiting for status' 'awaiting' 'Connect to receive firmware status.'
+Set-ComponentStatus 'i2c' 'not sampled' 'initialized' 'no probe scheduled' 'awaiting' 'Current firmware does not probe the I2C bus.'
+Set-ComponentStatus 'TCA9548A 0x70' 'not sampled' 'not touched' 'no probe scheduled' 'awaiting' 'C01-C08 BQ switch remains untouched.'
+Set-ComponentStatus 'TCA9548A 0x71' 'not sampled' 'not touched' 'no probe scheduled' 'awaiting' 'C09-C16 BQ switch remains untouched.'
+Set-ComponentStatus 'PCF8574 0x27' 'not sampled' 'safe idle' 'no write scheduled' 'awaiting' 'Mux enable expander is untouched.'
+Set-ComponentStatus 'U10 TC1047 mux' 'not sampled' 'disabled' 'no read scheduled' 'awaiting' 'Internal temperature mux remains disabled.'
+Set-ComponentStatus 'U10E temperature mux' 'not sampled' 'disabled' 'no read scheduled' 'awaiting' 'External temperature mux remains disabled.'
+Set-ComponentStatus 'U34 shunt mux' 'not sampled' 'disabled' 'no read scheduled' 'awaiting' 'Internal INA shunt mux remains disabled.'
+Set-ComponentStatus 'U3 external INA mux' 'not sampled' 'disabled' 'no read scheduled' 'awaiting' 'External INA mux remains disabled.'
+Set-ComponentStatus 'U2 internal INA mux' 'not sampled' 'disabled' 'no read scheduled' 'awaiting' 'Internal INA mux remains disabled.'
+Set-ComponentStatus 'INA219 0x41' 'not sampled' 'read-only' 'no read scheduled' 'awaiting' 'External measurement path is untouched.'
+Set-ComponentStatus 'INA219 0x4F' 'not sampled' 'read-only' 'no read scheduled' 'awaiting' 'Internal measurement path/address conflict remains unresolved.'
+Set-ComponentStatus 'BQ24195 C01-C16' 'not sampled' 'read-only' 'no read scheduled' 'awaiting' 'No charger register reads are scheduled.'
+Set-ComponentStatus 'SSD1306 0x3C' 'not sampled' 'not touched' 'no probe scheduled' 'awaiting' 'OLED has not been queried.'
+Set-ComponentStatus 'PCA9685 0x4F' 'unverified' 'disabled' 'no access scheduled' 'awaiting' 'Address conflict remains unresolved.'
+Set-ComponentStatus 'outputs' 'awaiting' 'read-only' 'waiting for status' 'awaiting' 'Output commands are unavailable in this firmware.'
+for ($slotNumber = 1; $slotNumber -le 16; $slotNumber++) {
+    Set-SlotStatus ('C{0:d2}' -f $slotNumber) 'not sampled' 'read-only' 'no I2C read scheduled' 'awaiting' 'Awaiting a future approved read-only I2C phase.'
+}
 [void]$form.ShowDialog()

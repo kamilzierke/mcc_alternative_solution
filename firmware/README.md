@@ -19,10 +19,11 @@ The read-only firmware emits newline-delimited status frames at `115200 8N1`:
 ```text
 MCC|HELLO|<version>|mode=read-only
 MCC|EVENT|<level>|<component>|<message>
-MCC|STATUS|<component>|<state>|<detail>
+MCC|STATUS|<component>|<observed>|<requested>|<status>|<match>|<detail>
+MCC|SLOT|<slot>|<observed>|<requested>|<status>|<match>|<detail>
 ```
 
-`read-only` is an enforced capability boundary. The protocol is designed for the local live monitor and future automated bench runners; it does not provide output-control commands.
+`read-only` is an enforced capability boundary. The protocol is designed for the local live monitor and future automated bench runners; it does not provide output-control commands. The current firmware deliberately reports every slot as `not-sampled` until a read-only I2C measurement phase is approved.
 
 ## Automated checks
 

@@ -21,7 +21,13 @@ void emit_event(const char *level, const char *component, const char *message) {
 }
 
 void emit_component(const mccfw::ComponentStatus &component) {
-  Serial.printf("MCC|STATUS|%s|%s|%s\n", component.name, mccfw::state_name(component.state), component.detail);
+  const char *observed = mccfw::state_name(component.state);
+  Serial.printf("MCC|STATUS|%s|%s|%s|reported|%s|%s\n", component.name, observed, observed,
+                mccfw::comparison_name(mccfw::ComparisonState::Match), component.detail);
+}
+
+void emit_slot_status(uint8_t slot0) {
+  Serial.printf("MCC|SLOT|C%02u|not-sampled|read-only|no I2C read scheduled|awaiting|no I2C read scheduled\n", slot0 + 1);
 }
 
 void initialize_safe_pins() {
@@ -43,6 +49,7 @@ void emit_status() {
       {"outputs", mccfw::ComponentState::ReadOnly, "output commands disabled"},
   };
   for (const auto &component : components) emit_component(component);
+  for (uint8_t slot0 = 0; slot0 < 16; slot0++) emit_slot_status(slot0);
 }
 
 }  // namespace

@@ -6,3 +6,4 @@ archive/
 firmware/.pio/
 firmware_dumps/
 .~lock.*#
+esphome/secrets.yaml

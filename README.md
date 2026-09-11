@@ -47,6 +47,17 @@ ESP-12F pins used by the current native firmware:
 
 Start with `esphome/mcc-pro-native.yaml`.
 
+## Project workflow and safety
+
+Repository work follows [AI_AGENT_WORKFLOW_STANDARD.md](AI_AGENT_WORKFLOW_STANDARD.md), with the project-specific rules in [AGENTS.md](AGENTS.md). Firmware validation may use the local ESPHome configuration and compiler, but flashing, OTA, serial/USB access and any live hardware probing require explicit approval.
+
+Create a local `esphome/secrets.yaml` from [esphome/secrets.example.yaml](esphome/secrets.example.yaml) before running ESPHome. The local secrets file is ignored and must never be committed. The active configuration can be checked without connecting to the charger:
+
+```powershell
+esphome config esphome\mcc-pro-native.yaml
+esphome compile esphome\mcc-pro-native.yaml
+```
+
 Component notes from the local datasheets are in `docs/components/`; renamed source PDFs are in `docs/datasheets/`; current UI captures are in `docs/screenshots/`; hardware photos and diagrams are in `docs/hardware/`.
 
 See `docs/esphome-native-diagnostics.md`, `docs/component-control-reference.md`, `docs/firmware-status-and-roadmap.md`, `docs/temperature-readout-tc1047.md` and `hardware/temperature_sensor_map.csv`.

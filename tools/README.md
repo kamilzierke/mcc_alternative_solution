@@ -2,6 +2,8 @@
 
 `mcc-live-monitor.ps1` is a dependency-free Windows GUI for observing UART output from MCC Pro firmware. It opens the selected port with DTR and RTS disabled, sends no data and writes a local session log beneath `artifacts/live-monitor/`.
 
+Its layout target is documented visually in [`docs/gui-design-reference.png`](../docs/gui-design-reference.png); the current build uses system-styled (unthemed) native controls and does not yet match that reference pixel-for-pixel.
+
 ```powershell
 & .\tools\mcc-live-monitor.ps1
 ```

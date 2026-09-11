@@ -49,7 +49,7 @@ Start with `esphome/mcc-pro-native.yaml`.
 
 ## Project workflow and safety
 
-Repository work follows [AI_AGENT_WORKFLOW_STANDARD.md](AI_AGENT_WORKFLOW_STANDARD.md), with the project-specific rules in [AGENTS.md](AGENTS.md). Firmware validation may use the local ESPHome configuration and compiler, but flashing, OTA, serial/USB access and any live hardware probing require explicit approval.
+Firmware validation may use the local ESPHome configuration and compiler. Do not flash firmware, invoke OTA or perform live hardware probing until the relevant hardware procedure has been reviewed.
 
 Create a local `esphome/secrets.yaml` from [esphome/secrets.example.yaml](esphome/secrets.example.yaml) before running ESPHome. The local secrets file is ignored and must never be committed. The active configuration can be checked without connecting to the charger:
 

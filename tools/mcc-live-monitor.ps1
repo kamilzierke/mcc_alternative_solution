@@ -42,7 +42,7 @@ $script:CellStates = @{}
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'MCC Pro Live Monitor'
 $form.StartPosition = 'CenterScreen'
-$form.MinimumSize = New-Object System.Drawing.Size(1180, 760)
+$form.MinimumSize = New-Object System.Drawing.Size(1280, 720)
 $form.Size = New-Object System.Drawing.Size(1440, 900)
 $form.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 $form.BackColor = $script:Theme.Window
@@ -271,6 +271,38 @@ foreach ($columnName in $script:SlotTableDefaultColumnWidths.Keys) {
     $slotGrid.Columns[$columnName].MinimumWidth = $script:SlotTableMinColumnWidth
     $slotGrid.Columns[$columnName].Width = $script:SlotTableDefaultColumnWidths[$columnName]
 }
+
+$script:columnLayoutPath = Join-Path $PSScriptRoot '..\artifacts\live-monitor\column-layout.json'
+
+function Save-ColumnLayout {
+    try {
+        $widths = @{}
+        foreach ($column in $slotGrid.Columns) { $widths[$column.Name] = $column.Width }
+        $directory = Split-Path $script:columnLayoutPath -Parent
+        New-Item -ItemType Directory -Force -Path $directory | Out-Null
+        $widths | ConvertTo-Json | Out-File -FilePath $script:columnLayoutPath -Encoding utf8
+    } catch {
+        # Best-effort only; a failed save must not block closing the window.
+    }
+}
+
+function Restore-ColumnLayout {
+    if (-not (Test-Path $script:columnLayoutPath)) { return }
+    try {
+        $saved = Get-Content $script:columnLayoutPath -Raw | ConvertFrom-Json
+        foreach ($property in $saved.PSObject.Properties) {
+            if (-not $slotGrid.Columns.Contains($property.Name)) { continue }
+            $width = [int]$property.Value
+            if ($width -ge $script:SlotTableMinColumnWidth -and $width -le $script:SlotTableMaxColumnWidth) {
+                $slotGrid.Columns[$property.Name].Width = $width
+            }
+        }
+    } catch {
+        # Corrupt or unreadable preferences file: keep the default widths.
+    }
+}
+
+Restore-ColumnLayout
 $cellBqPanel.Controls.Add($slotGrid)
 $slotGrid.BringToFront()
 
@@ -720,6 +752,7 @@ $connectButton.Add_Click({
 
 $form.Add_FormClosing({
     Disconnect-Monitor
+    Save-ColumnLayout
 })
 
 Set-ComponentStatus 'firmware' 'awaiting' 'read-only' 'waiting for status' 'awaiting' 'Connect to receive firmware status.'

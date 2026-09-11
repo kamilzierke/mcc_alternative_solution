@@ -1,0 +1,33 @@
+# Contributing
+
+Thank you for improving the MegaCell Charger Pro replacement firmware and its evidence base.
+
+## Before proposing a change
+
+- Keep a change focused on one documented behavior, board path or compatibility contract.
+- Preserve existing diagnostic behavior unless the migration and user-visible effect are documented.
+- Update the relevant technical evidence and `CHANGELOG.md` for user-visible changes.
+- Do not commit Wi-Fi credentials, serial numbers, full hardware inventories, raw diagnostic logs, captured network data or local build artifacts.
+
+## Validation
+
+Run the available hardware-independent check before submitting a firmware or configuration change:
+
+```powershell
+esphome config esphome\mcc-pro-native.yaml
+git diff --check
+```
+
+Run `esphome compile esphome\mcc-pro-native.yaml` when the local toolchain and all required dependencies are already available. Compilation is not evidence of live charger behavior.
+
+## Hardware evidence
+
+Do not perform untraced PCF8574, PCA9685, BQ24195 or GPIO output writes with Li-Ion cells installed. Hardware reports must state:
+
+- MCC board revision or identifiable board variant;
+- power supply and current-limit conditions;
+- whether cells or loads were attached;
+- exact procedure and observed result;
+- final output state and cleanup result.
+
+Keep experimental hardware work separate from synthetic validation. A hardware-dependent claim is not complete until the relevant measurement and safe-off behavior are documented.

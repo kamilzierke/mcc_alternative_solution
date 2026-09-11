@@ -7,3 +7,6 @@ firmware/.pio/
 firmware_dumps/
 .~lock.*#
 esphome/secrets.yaml
+/artifacts/
+*.log
+*.jsonl

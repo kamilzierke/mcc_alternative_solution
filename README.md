@@ -58,6 +58,12 @@ esphome config esphome\mcc-pro-native.yaml
 esphome compile esphome\mcc-pro-native.yaml
 ```
 
-Component notes from the local datasheets are in `docs/components/`; renamed source PDFs are in `docs/datasheets/`; current UI captures are in `docs/screenshots/`; hardware photos and diagrams are in `docs/hardware/`.
+## Documentation and project policy
 
-See `docs/esphome-native-diagnostics.md`, `docs/component-control-reference.md`, `docs/firmware-status-and-roadmap.md`, `docs/temperature-readout-tc1047.md` and `hardware/temperature_sensor_map.csv`.
+- [Product roadmap](ROADMAP.md): planned milestones, safety gates and completion criteria.
+- [Firmware status](docs/firmware-status-and-roadmap.md): current technical scope and experimental boundaries.
+- [ESPHome diagnostics](docs/esphome-native-diagnostics.md) and [component control reference](docs/component-control-reference.md): current implementation and board evidence.
+- [Temperature readout](docs/temperature-readout-tc1047.md) and [slot temperature map](hardware/temperature_sensor_map.csv): confirmed TC1047 path evidence.
+- [Contributing](CONTRIBUTING.md), [security policy](SECURITY.md) and [changelog](CHANGELOG.md): collaboration, private reporting and published change history.
+
+Component notes from the local datasheets are in `docs/components/`; renamed source PDFs are in `docs/datasheets/`; current UI captures are in `docs/screenshots/`; hardware photos and diagrams are in `docs/hardware/`.

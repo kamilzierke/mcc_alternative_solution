@@ -45,7 +45,7 @@ ESP-12F pins used by the current native firmware:
 | GPIO1 / TX0 | OUT | UART logger at 115200 baud |
 | GPIO3 / RX0 | IN | UART0/programming path, not application logic |
 
-The active firmware source is `esphome/mcc-pro-native.yaml` with `esphome/mcc_diag_helpers_native.h`.
+The active experimental firmware source is [firmware](firmware/README.md), a PlatformIO ESP8266 project in strict read-only diagnostic mode. The ESPHome implementation in `esphome/mcc-pro-native.yaml` remains the confirmed integration reference and is updated only from verified lower-level firmware results.
 The current development version is recorded in `VERSION`.
 
 ## Configuration and safety
@@ -59,6 +59,7 @@ esphome config esphome\mcc-pro-native.yaml
 esphome compile esphome\mcc-pro-native.yaml
 & .\scripts\verify-repository.ps1
 & .\scripts\test-synthetic.ps1
+pio run --project-dir .\firmware
 ```
 
 ## Documentation and project policy
@@ -68,6 +69,7 @@ esphome compile esphome\mcc-pro-native.yaml
 - [ESPHome diagnostics](docs/esphome-native-diagnostics.md) and [component control reference](docs/component-control-reference.md): current implementation and board evidence.
 - [Temperature readout](docs/temperature-readout-tc1047.md) and [slot temperature map](hardware/temperature_sensor_map.csv): confirmed TC1047 path evidence.
 - [Hardware test protocol](docs/hardware-test-protocol.md) and [release process](docs/releasing.md): evidence requirements and pre-release gates.
+- [Low-level firmware](firmware/README.md) and [local live monitor](tools/README.md): PlatformIO diagnostics and UART status comparison GUI.
 - [Contributing](CONTRIBUTING.md), [security policy](SECURITY.md) and [changelog](CHANGELOG.md): collaboration, private reporting and published change history.
 
 Component notes from the local datasheets are in `docs/components/`; renamed source PDFs are in `docs/datasheets/`; current UI captures are in `docs/screenshots/`; hardware photos and diagrams are in `docs/hardware/`.

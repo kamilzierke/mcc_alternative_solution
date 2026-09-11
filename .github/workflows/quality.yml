@@ -26,4 +26,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build and run diagnostic contract tests
-        run: g++ -std=c++17 -Wall -Wextra -Werror -I esphome tests/test_mcc_diag_contract.cpp -o /tmp/test_mcc_diag_contract && /tmp/test_mcc_diag_contract
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -I shared tests/test_mcc_diag_contract.cpp -o /tmp/test_mcc_diag_contract
+          /tmp/test_mcc_diag_contract
+          g++ -std=c++17 -Wall -Wextra -Werror -I firmware/include tests/test_mcc_firmware_core.cpp -o /tmp/test_mcc_firmware_core
+          /tmp/test_mcc_firmware_core

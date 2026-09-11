@@ -9,11 +9,19 @@ $requiredPaths = @(
     'docs/hardware-test-protocol.md',
     'docs/releasing.md',
     'docs/firmware-status-and-roadmap.md',
+    'firmware/README.md',
+    'firmware/platformio.ini',
+    'firmware/include/mcc_firmware_core.h',
+    'firmware/src/main.cpp',
     'esphome/mcc-pro-native.yaml',
     'esphome/mcc_diag_contract.h',
     'esphome/secrets.example.yaml',
+    'shared/mcc_diag_contract.h',
     'scripts/test-synthetic.ps1',
-    'tests/test_mcc_diag_contract.cpp'
+    'tests/test_mcc_diag_contract.cpp',
+    'tests/test_mcc_firmware_core.cpp',
+    'tools/mcc-live-monitor.ps1',
+    'tools/README.md'
 )
 
 $missingPaths = $requiredPaths | Where-Object { -not (Test-Path -LiteralPath $_) }

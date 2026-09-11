@@ -230,6 +230,7 @@ $slotGrid.AllowUserToResizeRows = $false
 $slotGrid.AllowUserToResizeColumns = $true
 $slotGrid.ScrollBars = 'Both'
 $slotGrid.RowHeadersVisible = $false
+$slotGrid.SelectionMode = 'FullRowSelect'
 $slotGrid.ColumnHeadersVisible = $true
 $slotGrid.ColumnHeadersHeightSizeMode = 'AutoSize'
 $slotGrid.EnableHeadersVisualStyles = $false
@@ -319,14 +320,21 @@ $mirrorGrid.Controls.Add($gapPanel, 8, 0)
 
 $script:selectedSlotName = $null
 
-function Select-SlotRow([string]$slotName) {
-    if ($script:selectedSlotName -and $slotTiles.ContainsKey($script:selectedSlotName)) {
+function Set-SelectedSlot([string]$slotName) {
+    if ($script:selectedSlotName -and $script:selectedSlotName -ne $slotName -and $slotTiles.ContainsKey($script:selectedSlotName)) {
         Set-CellSlotWidgetSelected $slotTiles[$script:selectedSlotName] $false
     }
     $script:selectedSlotName = $slotName
     if ($slotTiles.ContainsKey($slotName)) {
         Set-CellSlotWidgetSelected $slotTiles[$slotName] $true
     }
+    if ($script:CellStates.ContainsKey($slotName)) {
+        $selectedSlotSummary.Text = Format-CellDetails $script:CellStates[$slotName]
+    }
+}
+
+function Select-SlotRow([string]$slotName) {
+    Set-SelectedSlot $slotName
     foreach ($row in $slotGrid.Rows) {
         if ($row.Cells['Slot'].Value -eq $slotName) {
             $slotGrid.ClearSelection()
@@ -527,11 +535,7 @@ function Set-SlotStatus([string]$slot, [string]$observed, [string]$requested, [s
 
 $slotGrid.Add_SelectionChanged({
     if ($slotGrid.SelectedRows.Count -eq 1) {
-        $selectedSlot = $slotGrid.SelectedRows[0].Cells['Slot'].Value
-        $script:selectedSlotName = $selectedSlot
-        if ($script:CellStates.ContainsKey($selectedSlot)) {
-            $selectedSlotSummary.Text = Format-CellDetails $script:CellStates[$selectedSlot]
-        }
+        Set-SelectedSlot $slotGrid.SelectedRows[0].Cells['Slot'].Value
     }
 })
 

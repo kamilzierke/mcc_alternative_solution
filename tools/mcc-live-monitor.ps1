@@ -1,9 +1,24 @@
+param(
+    [string]$Port = 'COM7',
+    [int]$Baud = 115200,
+    [int]$ObservationSeconds = 0,
+    [switch]$AutoConnect
+)
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
+. (Join-Path $PSScriptRoot 'mcc-uart-protocol.ps1')
 
 $ErrorActionPreference = 'Stop'
 $script:serialPort = $null
 $script:logWriter = $null
+$script:observationWatch = $null
+$script:componentFrames = 0
+$script:slotFrames = 0
+$script:invalidFrames = 0
+$script:observedComponents = [System.Collections.Generic.HashSet[string]]::new()
+$script:observedSlots = [System.Collections.Generic.HashSet[string]]::new()
+$script:receiveBuffer = ''
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'MCC Pro Live Monitor'
@@ -29,7 +44,7 @@ $portSelector.Width = 100
 $portSelector.DropDownStyle = 'DropDownList'
 $availablePorts = @([System.IO.Ports.SerialPort]::GetPortNames() | Sort-Object)
 [void]$portSelector.Items.AddRange($availablePorts)
-if ($portSelector.Items.Contains('COM7')) { $portSelector.SelectedItem = 'COM7' } elseif ($portSelector.Items.Count -gt 0) { $portSelector.SelectedIndex = 0 }
+if ($portSelector.Items.Contains($Port)) { $portSelector.SelectedItem = $Port } elseif ($portSelector.Items.Count -gt 0) { $portSelector.SelectedIndex = 0 }
 $topPanel.Controls.Add($portSelector)
 
 $baudLabel = New-Object System.Windows.Forms.Label
@@ -41,7 +56,8 @@ $baudSelector = New-Object System.Windows.Forms.ComboBox
 $baudSelector.Width = 100
 $baudSelector.DropDownStyle = 'DropDownList'
 [void]$baudSelector.Items.AddRange(@('115200', '74880', '9600'))
-$baudSelector.SelectedItem = '115200'
+$baudSelector.SelectedItem = $Baud.ToString()
+if ($baudSelector.SelectedIndex -lt 0) { $baudSelector.SelectedItem = '115200' }
 $topPanel.Controls.Add($baudSelector)
 
 $connectButton = New-Object System.Windows.Forms.Button
@@ -56,6 +72,13 @@ $connectionLabel.AutoSize = $true
 $connectionLabel.ForeColor = [System.Drawing.Color]::Firebrick
 $connectionLabel.Margin = '16,7,0,0'
 $topPanel.Controls.Add($connectionLabel)
+
+$testLabel = New-Object System.Windows.Forms.Label
+$testLabel.Text = if ($ObservationSeconds -gt 0) { "Test pending: $ObservationSeconds s" } else { 'Live view: manual' }
+$testLabel.AutoSize = $true
+$testLabel.ForeColor = [System.Drawing.Color]::DarkSlateBlue
+$testLabel.Margin = '18,7,0,0'
+$topPanel.Controls.Add($testLabel)
 
 $viewTabs = New-Object System.Windows.Forms.TabControl
 $viewTabs.Dock = 'Fill'
@@ -216,6 +239,32 @@ function Add-LogLine([string]$line) {
     if ($script:logWriter) { $script:logWriter.WriteLine($timestamped); $script:logWriter.Flush() }
 }
 
+function Disconnect-Monitor {
+    $timer.Stop()
+    if ($script:serialPort -and $script:serialPort.IsOpen) {
+        $script:serialPort.Close()
+        $script:serialPort.Dispose()
+    }
+    $script:serialPort = $null
+    if ($script:logWriter) { $script:logWriter.Dispose(); $script:logWriter = $null }
+    $connectButton.Text = 'Connect Read-Only'
+    $connectionLabel.Text = 'Disconnected'
+    $connectionLabel.ForeColor = [System.Drawing.Color]::Firebrick
+}
+
+function Complete-Observation {
+    $script:observationWatch.Stop()
+    $expectedComponents = @('firmware', 'i2c', 'mux-select', 'outputs')
+    $missingComponents = @($expectedComponents | Where-Object { -not $script:observedComponents.Contains($_) })
+    $passed = $script:invalidFrames -eq 0 -and $script:observedSlots.Count -eq 16 -and $missingComponents.Count -eq 0
+    $result = if ($passed) { 'PASS' } else { 'FAIL' }
+    $testLabel.Text = "${result}: components=$($script:observedComponents.Count)/4 slots=$($script:observedSlots.Count)/16 invalid=$($script:invalidFrames)"
+    $testLabel.ForeColor = if ($passed) { [System.Drawing.Color]::ForestGreen } else { [System.Drawing.Color]::Firebrick }
+    Add-LogLine "Observation $result after $ObservationSeconds s: component frames=$($script:componentFrames), slot frames=$($script:slotFrames), unique slots=$($script:observedSlots.Count), invalid=$($script:invalidFrames)."
+    Disconnect-Monitor
+    $script:observationWatch = $null
+}
+
 function Parse-MccLine([string]$line) {
     $fields = $line -split '\|', 8
     if ($fields.Count -lt 2 -or $fields[0] -ne 'MCC') {
@@ -227,11 +276,19 @@ function Parse-MccLine([string]$line) {
             Set-ComponentStatus 'firmware' 'read-only' 'read-only' 'banner received' 'match' (($fields | Select-Object -Skip 2) -join ' ')
         }
         'STATUS' {
-            if ($fields.Count -ge 8) { Set-ComponentStatus $fields[2] $fields[3] $fields[4] $fields[5] $fields[6] $fields[7] }
+            if ($fields.Count -ge 8) {
+                $script:componentFrames++
+                [void]$script:observedComponents.Add($fields[2])
+                Set-ComponentStatus $fields[2] $fields[3] $fields[4] $fields[5] $fields[6] $fields[7]
+            }
             elseif ($fields.Count -ge 5) { Set-ComponentStatus $fields[2] $fields[3] 'unknown' $fields[4] 'awaiting' 'Legacy status frame without comparison fields.' }
         }
         'SLOT' {
-            if ($fields.Count -ge 8) { Set-SlotStatus $fields[2] $fields[3] $fields[4] $fields[5] $fields[6] $fields[7] }
+            if ($fields.Count -ge 8) {
+                $script:slotFrames++
+                [void]$script:observedSlots.Add($fields[2])
+                Set-SlotStatus $fields[2] $fields[3] $fields[4] $fields[5] $fields[6] $fields[7]
+            }
         }
         'EVENT' {
             if ($fields.Count -ge 5) { Set-ComponentStatus $fields[3] $fields[2].ToLowerInvariant() 'ready' $fields[4] 'awaiting' $fields[4] }
@@ -244,22 +301,22 @@ $timer.Interval = 100
 $timer.Add_Tick({
     if ($script:serialPort -and $script:serialPort.IsOpen) {
         $data = $script:serialPort.ReadExisting()
-        foreach ($line in ($data -split "`r?`n")) {
+        $frames = Split-MccUartBuffer -Buffer ($script:receiveBuffer + $data)
+        $script:receiveBuffer = $frames.Remainder
+        foreach ($line in $frames.Lines) {
             if ($line) { Add-LogLine $line; Parse-MccLine $line }
+        }
+        if ($script:observationWatch) {
+            $elapsedSeconds = [math]::Floor($script:observationWatch.Elapsed.TotalSeconds)
+            if ($elapsedSeconds -ge $ObservationSeconds) { Complete-Observation }
+            else { $testLabel.Text = "Testing: $elapsedSeconds/$ObservationSeconds s, components=$($script:observedComponents.Count)/4, slots=$($script:observedSlots.Count)/16" }
         }
     }
 })
 
 $connectButton.Add_Click({
     if ($script:serialPort -and $script:serialPort.IsOpen) {
-        $timer.Stop()
-        $script:serialPort.Close()
-        $script:serialPort.Dispose()
-        $script:serialPort = $null
-        if ($script:logWriter) { $script:logWriter.Dispose(); $script:logWriter = $null }
-        $connectButton.Text = 'Connect Read-Only'
-        $connectionLabel.Text = 'Disconnected'
-        $connectionLabel.ForeColor = [System.Drawing.Color]::Firebrick
+        Disconnect-Monitor
         return
     }
     try {
@@ -277,6 +334,15 @@ $connectButton.Add_Click({
         $connectionLabel.Text = "Connected read-only: $($portSelector.SelectedItem)"
         $connectionLabel.ForeColor = [System.Drawing.Color]::ForestGreen
         Add-LogLine "Monitor connected with DTR/RTS disabled; log stored locally in artifacts."
+        if ($ObservationSeconds -gt 0) {
+            $script:componentFrames = 0
+            $script:slotFrames = 0
+            $script:invalidFrames = 0
+            $script:observedComponents.Clear()
+            $script:observedSlots.Clear()
+            $script:receiveBuffer = ''
+            $script:observationWatch = [System.Diagnostics.Stopwatch]::StartNew()
+        }
         $timer.Start()
     } catch {
         if ($script:logWriter) { $script:logWriter.Dispose(); $script:logWriter = $null }
@@ -286,9 +352,7 @@ $connectButton.Add_Click({
 })
 
 $form.Add_FormClosing({
-    $timer.Stop()
-    if ($script:serialPort -and $script:serialPort.IsOpen) { $script:serialPort.Close(); $script:serialPort.Dispose() }
-    if ($script:logWriter) { $script:logWriter.Dispose() }
+    Disconnect-Monitor
 })
 
 Set-ComponentStatus 'firmware' 'awaiting' 'read-only' 'waiting for status' 'awaiting' 'Connect to receive firmware status.'
@@ -310,4 +374,5 @@ Set-ComponentStatus 'outputs' 'awaiting' 'read-only' 'waiting for status' 'await
 for ($slotNumber = 1; $slotNumber -le 16; $slotNumber++) {
     Set-SlotStatus ('C{0:d2}' -f $slotNumber) 'not sampled' 'read-only' 'no I2C read scheduled' 'awaiting' 'Awaiting a future approved read-only I2C phase.'
 }
+$form.Add_Shown({ if ($AutoConnect) { $connectButton.PerformClick() } })
 [void]$form.ShowDialog()

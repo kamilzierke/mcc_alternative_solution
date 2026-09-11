@@ -24,3 +24,8 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) {
     throw 'Synthetic firmware core tests failed.'
 }
+
+& .\tests\test_mcc_uart_frame_buffer.ps1
+if ($LASTEXITCODE -ne 0) {
+    throw 'Synthetic UART frame buffer tests failed.'
+}

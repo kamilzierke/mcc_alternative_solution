@@ -6,6 +6,16 @@
 & .\tools\mcc-live-monitor.ps1
 ```
 
+After an approved read-only upload, use the visible 60-second verification flow:
+
+```powershell
+& .\scripts\upload-and-observe.ps1 -Port COM7 -ObservationSeconds 60
+```
+
+It opens the GUI after the upload, connects without sending UART data, shows elapsed time and received frame counts, then displays `PASS` only when it receives valid frames for the four current firmware components and all 16 slots. It disconnects automatically when the observation ends; the window remains open for inspection.
+
+The monitor buffers incomplete UART fragments until a full CRLF-terminated frame arrives. The host-only regression check is included in `scripts/test-synthetic.ps1`.
+
 The Live Overview tab lists the firmware, I2C, TCA9548A, PCF8574, HC4067 muxes, INA219 paths, BQ24195 slots, SSD1306, PCA9685 and outputs. Its columns distinguish the observed state, requested state, reported status, comparison result and most recent evidence.
 
 The Slots C01-C16 tab provides the same fields for every slot and includes its known BQ route. The overview includes a 4x4 MCC slot mirror: green means a firmware-reported match, amber means an awaiting measurement, orange means a mismatch, and red means a fault. The mirror reflects only serial frames; it does not infer physical behavior.

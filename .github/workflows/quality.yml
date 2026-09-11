@@ -19,6 +19,10 @@ jobs:
         shell: pwsh
         run: .\scripts\verify-repository.ps1
 
+      - name: Run UART frame buffer test
+        shell: pwsh
+        run: .\tests\test_mcc_uart_frame_buffer.ps1
+
   diagnostic-contract:
     runs-on: ubuntu-latest
     timeout-minutes: 5

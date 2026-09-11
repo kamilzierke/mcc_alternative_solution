@@ -18,9 +18,12 @@ $requiredPaths = @(
     'esphome/secrets.example.yaml',
     'shared/mcc_diag_contract.h',
     'scripts/test-synthetic.ps1',
+    'scripts/upload-and-observe.ps1',
     'tests/test_mcc_diag_contract.cpp',
     'tests/test_mcc_firmware_core.cpp',
+    'tests/test_mcc_uart_frame_buffer.ps1',
     'tools/mcc-live-monitor.ps1',
+    'tools/mcc-uart-protocol.ps1',
     'tools/README.md'
 )
 

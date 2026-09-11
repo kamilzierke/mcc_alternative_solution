@@ -58,6 +58,15 @@ int main() {
     expect_text(bq_watchdog_str(static_cast<uint8_t>(value << 4)), watchdogText[value], "BQ watchdog label");
   }
 
+  const uint8_t snapshot[] = {0x30, 0x1B, 0x60, 0x11, 0xB2, 0x9A, 0x03, 0x4B, 0x24, 0x80, 0x23};
+  char summary[256];
+  bq_snapshot_summary(snapshot, summary, sizeof(summary));
+  expect(std::strstr(summary, "IIN 100mA") != nullptr, "BQ summary input limit");
+  expect(std::strstr(summary, "ICHG 2048mA") != nullptr, "BQ summary charge current");
+  expect(std::strstr(summary, "fast-charge") != nullptr, "BQ summary charge state");
+  expect(std::strstr(summary, "fault normal") != nullptr, "BQ summary fault state");
+  expect(std::strstr(summary, "part4 rev3") != nullptr, "BQ summary part revision");
+
   std::cout << "MCC diagnostic contract tests passed.\n";
   return 0;
 }

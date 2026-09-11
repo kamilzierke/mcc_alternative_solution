@@ -46,3 +46,15 @@ Stop the test and remove power when an unexpected output changes state, measured
 ## Current MCC Pro restriction
 
 Until the `0x4F` device conflict, GPIO15 role and `stop_all_outputs()` sequence are verified, broader power-output control remains outside the permitted test scope. The active work is evidence-led diagnostics and board mapping.
+
+## First main-bus probe
+
+The first powered probe is limited to `mcc_pro_main_bus_probe`. It sends address-only I2C transactions to PCF8574 `0x27`, SSD1306 `0x3C`, TCA9548A `0x70` and TCA9548A `0x71`. No data byte is sent after the address and no address range is scanned. A successful ACK confirms bus reachability only; it does not prove register behavior or physical output state.
+
+The procedure is a current-limited bench test with cells and loads absent. Stop and remove power on an unexpected output change, excess current or any non-deterministic result. Record the four ACK results, current limit and final output state in the local test report.
+
+## First BQ24195 read
+
+The first BQ24195 test is limited to C01 and `REG0A`, the documented vendor/part/revision read-only register. The test may write only TCA selection bytes: it releases both TCA devices to `0x00`, selects C01 with `0x70 = 0x01`, sets the BQ read pointer to `0x0A`, reads one byte from `0x6B`, and releases both TCA devices to `0x00` again. It must report the final release result for both TCA devices.
+
+No BQ24195 configuration register, PCF8574 mask, PCA9685 register or GPIO output may be written in this phase. Keep cells and loads absent, use current-limited bench power and stop on unexpected current, output change or failure to release either TCA.

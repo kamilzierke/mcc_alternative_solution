@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdio>
 #include <cstdint>
 
 namespace mccdiag {
@@ -82,6 +83,18 @@ inline const char *bq_watchdog_str(uint8_t reg05) {
     case 3: return "160s";
   }
   return "?";
+}
+
+inline void bq_snapshot_summary(const uint8_t *registers, char *buffer, size_t buffer_size) {
+  std::snprintf(buffer, buffer_size,
+                "HIZ %s; IIN %s; CHG %s; OTG %s; ICHG %umA; WD %s; timer %s; %s; DPM %s; PG %s; VSYS %s; fault %s; part%u rev%u",
+                (registers[0x00] & 0x80U) ? "on" : "off", bq_iinlim_str(registers[0x00]),
+                (registers[0x01] & 0x10U) ? "on" : "off", (registers[0x01] & 0x20U) ? "on" : "off",
+                bq_ichg_ma(registers[0x02]), bq_watchdog_str(registers[0x05]),
+                (registers[0x05] & 0x08U) ? "on" : "off", bq_chrg_str(registers[0x08]),
+                (registers[0x08] & 0x08U) ? "yes" : "no", (registers[0x08] & 0x04U) ? "yes" : "no",
+                (registers[0x08] & 0x01U) ? "yes" : "no", bq_fault_str(registers[0x09]),
+                (registers[0x0A] >> 3) & 0x07U, registers[0x0A] & 0x07U);
 }
 
 }  // namespace mccdiag

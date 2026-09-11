@@ -12,6 +12,26 @@ pio run --project-dir .\firmware
 
 The generated binary is local build output under `firmware/.pio/`; it is ignored by Git. Do not upload a binary until the intended test tier has been reviewed under [the hardware test protocol](../docs/hardware-test-protocol.md).
 
+## Approved main-bus probe build
+
+`mcc_pro_main_bus_probe` is a separate build environment for the first bench read. It sends one address-only I2C transaction to each of the confirmed main-bus addresses `0x27`, `0x3C`, `0x70` and `0x71`, then reports the cached ACK result over UART. It does not send I2C data bytes, scan address ranges, select TCA channels, write PCF8574 masks, enable HC4067 muxes or access `0x41`, `0x4F` and `0x6B`. The address transactions occur once at boot; only their saved results are emitted again in periodic status frames.
+
+```powershell
+pio run --project-dir .\firmware --environment mcc_pro_main_bus_probe
+```
+
+Uploading this environment and opening its serial monitor remain hardware operations that require explicit approval.
+
+## C01 BQ24195 identity probe build
+
+`mcc_pro_bq_c01_identity_probe` is a separate read-only environment for one BQ24195 identity read. It releases both TCA9548A selectors to `0x00`, selects only C01 with `0x70 = 0x01`, writes the BQ24195 read pointer `REG0A` (`0x0A`) and reads one byte from `0x6B`. It then releases both TCA9548A selectors to `0x00` again, including after a failed BQ read. No BQ24195 configuration register is written.
+
+```powershell
+pio run --project-dir .\firmware --environment mcc_pro_bq_c01_identity_probe
+```
+
+The test is a controlled mux action and BQ read, so upload and observation require explicit approval and the bench conditions in the hardware test protocol.
+
 ## Serial protocol
 
 The read-only firmware emits newline-delimited status frames at `115200 8N1`:

@@ -21,3 +21,10 @@ All notable user-visible changes and material evidence updates are documented he
 - Native ESPHome diagnostics support queued single-slot and all-slot reads across the 16 BQ24195 channels.
 - Diagnostics expose TC1047 internal temperature, internal/external INA219 paths, BQ24195 registers, OLED status and documented web endpoints.
 - Broader output control remains blocked pending resolution of the `0x4F` conflict, GPIO15 tracing and verified `stop_all_outputs()` behavior.
+
+### Bench evidence
+
+- Confirmed address-only I2C ACK responses for PCF8574 `0x27`, SSD1306 `0x3C` and TCA9548A `0x70`/`0x71` through the read-only PlatformIO probe.
+- Confirmed that both TCA9548A control registers read `0x00` after reset, with no BQ channel selected.
+- Confirmed read-only BQ24195 C01 `REG0A = 0x23` through TCA9548A `0x70` channel 0, including successful release of both TCA selectors.
+- Confirmed a read-only BQ24195 C01 `REG00..REG0A` snapshot with successful TCA selection and final release.

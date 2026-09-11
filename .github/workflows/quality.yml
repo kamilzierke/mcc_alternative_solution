@@ -35,3 +35,7 @@ jobs:
           /tmp/test_mcc_diag_contract
           g++ -std=c++17 -Wall -Wextra -Werror -I firmware/include tests/test_mcc_firmware_core.cpp -o /tmp/test_mcc_firmware_core
           /tmp/test_mcc_firmware_core
+          g++ -std=c++17 -Wall -Wextra -Werror -I firmware/include tests/test_mcc_i2c_probe_plan.cpp -o /tmp/test_mcc_i2c_probe_plan
+          /tmp/test_mcc_i2c_probe_plan
+          g++ -std=c++17 -Wall -Wextra -Werror -I firmware/include tests/test_mcc_bq_probe_plan.cpp -o /tmp/test_mcc_bq_probe_plan
+          /tmp/test_mcc_bq_probe_plan

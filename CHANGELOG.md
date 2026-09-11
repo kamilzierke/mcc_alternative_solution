@@ -11,6 +11,8 @@ All notable user-visible changes and material evidence updates are documented he
 - Added ignored local artifact paths for diagnostic logs and reports.
 - Removed public references to local archive structure and historical workspace material.
 - Added a hardware-independent repository quality gate for private-file tracking, public documentation targets and patch formatting.
+- Added deterministic C++ tests for INA219, TC1047 and BQ24195 diagnostic conversions and decoding.
+- Added documented hardware-test evidence and pre-release requirements for the diagnostic firmware stage.
 
 ### Current diagnostic baseline
 

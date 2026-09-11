@@ -16,12 +16,13 @@ Run the available hardware-independent check before submitting a firmware or con
 ```powershell
 esphome config esphome\mcc-pro-native.yaml
 & .\scripts\verify-repository.ps1
+& .\scripts\test-synthetic.ps1
 git diff --check
 ```
 
 Run `esphome compile esphome\mcc-pro-native.yaml` when the local toolchain and all required dependencies are already available. Compilation is not evidence of live charger behavior.
 
-`scripts/verify-repository.ps1` uses only Git and PowerShell. It checks that private inputs and generated artifacts are not tracked, that public documentation targets exist and that the working patch has no whitespace errors.
+`scripts/verify-repository.ps1` uses only Git and PowerShell. It checks that private inputs and generated artifacts are not tracked, that public documentation targets exist and that the working patch has no whitespace errors. `scripts/test-synthetic.ps1` compiles and runs the deterministic INA219, TC1047 and BQ24195 diagnostic contract tests with a local C++ compiler.
 
 ## Hardware evidence
 

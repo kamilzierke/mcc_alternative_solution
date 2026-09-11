@@ -18,3 +18,12 @@ jobs:
       - name: Verify public repository hygiene
         shell: pwsh
         run: .\scripts\verify-repository.ps1
+
+  diagnostic-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and run diagnostic contract tests
+        run: g++ -std=c++17 -Wall -Wextra -Werror -I esphome tests/test_mcc_diag_contract.cpp -o /tmp/test_mcc_diag_contract && /tmp/test_mcc_diag_contract

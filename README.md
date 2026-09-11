@@ -46,6 +46,7 @@ ESP-12F pins used by the current native firmware:
 | GPIO3 / RX0 | IN | UART0/programming path, not application logic |
 
 The active firmware source is `esphome/mcc-pro-native.yaml` with `esphome/mcc_diag_helpers_native.h`.
+The current development version is recorded in `VERSION`.
 
 ## Configuration and safety
 
@@ -57,6 +58,7 @@ Create a local `esphome/secrets.yaml` from [esphome/secrets.example.yaml](esphom
 esphome config esphome\mcc-pro-native.yaml
 esphome compile esphome\mcc-pro-native.yaml
 & .\scripts\verify-repository.ps1
+& .\scripts\test-synthetic.ps1
 ```
 
 ## Documentation and project policy
@@ -65,6 +67,7 @@ esphome compile esphome\mcc-pro-native.yaml
 - [Firmware status](docs/firmware-status-and-roadmap.md): current technical scope and experimental boundaries.
 - [ESPHome diagnostics](docs/esphome-native-diagnostics.md) and [component control reference](docs/component-control-reference.md): current implementation and board evidence.
 - [Temperature readout](docs/temperature-readout-tc1047.md) and [slot temperature map](hardware/temperature_sensor_map.csv): confirmed TC1047 path evidence.
+- [Hardware test protocol](docs/hardware-test-protocol.md) and [release process](docs/releasing.md): evidence requirements and pre-release gates.
 - [Contributing](CONTRIBUTING.md), [security policy](SECURITY.md) and [changelog](CHANGELOG.md): collaboration, private reporting and published change history.
 
 Component notes from the local datasheets are in `docs/components/`; renamed source PDFs are in `docs/datasheets/`; current UI captures are in `docs/screenshots/`; hardware photos and diagrams are in `docs/hardware/`.

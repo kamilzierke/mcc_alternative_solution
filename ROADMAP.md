@@ -4,7 +4,7 @@ This roadmap describes the intended direction for the MCC Pro replacement firmwa
 
 ## Current baseline
 
-The native ESPHome diagnostic firmware can read one slot or queue reads for all 16 slots. It exposes TC1047 temperature, internal and external INA219 diagnostics, BQ24195 registers and limited queued BQ host-control actions. The active implementation is documented in `esphome/mcc-pro-native.yaml` and `docs/firmware-status-and-roadmap.md`.
+The native ESPHome diagnostic firmware can read one slot or queue reads for all 16 slots. It exposes TC1047 temperature, internal and external INA219 diagnostics, BQ24195 registers and limited queued BQ host-control actions. Deterministic C++ tests cover the shared INA219/TC1047 conversions and BQ24195 decoder contract. The active implementation is documented in `esphome/mcc-pro-native.yaml` and `docs/firmware-status-and-roadmap.md`.
 
 The following remain unverified and block broader output control:
 

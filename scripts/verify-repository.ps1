@@ -5,14 +5,25 @@ $requiredPaths = @(
     'CONTRIBUTING.md',
     'ROADMAP.md',
     'SECURITY.md',
+    'VERSION',
+    'docs/hardware-test-protocol.md',
+    'docs/releasing.md',
     'docs/firmware-status-and-roadmap.md',
     'esphome/mcc-pro-native.yaml',
-    'esphome/secrets.example.yaml'
+    'esphome/mcc_diag_contract.h',
+    'esphome/secrets.example.yaml',
+    'scripts/test-synthetic.ps1',
+    'tests/test_mcc_diag_contract.cpp'
 )
 
 $missingPaths = $requiredPaths | Where-Object { -not (Test-Path -LiteralPath $_) }
 if ($missingPaths) {
     throw "Required public files are missing: $($missingPaths -join ', ')"
+}
+
+$version = (Get-Content -LiteralPath 'VERSION' -Raw).Trim()
+if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+    throw "VERSION must use semantic version syntax: $version"
 }
 
 $trackedPrivatePaths = @(

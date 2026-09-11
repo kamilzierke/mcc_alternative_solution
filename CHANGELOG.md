@@ -15,6 +15,7 @@ All notable user-visible changes and material evidence updates are documented he
 - Added documented hardware-test evidence and pre-release requirements for the diagnostic firmware stage.
 - Established PlatformIO read-only firmware as the starting point for new hardware experiments, with ESPHome retained as the verified integration reference.
 - Added a local UART live monitor with structured component statuses, expected-versus-live state comparison and ignored session logs.
+- Redesigned the live monitor as a single persistent screen with a component-diagnostics table, a per-field BQ24195 cell table, an 8-gap-8 physical slot mirror, and a leveled/raw live log.
 
 ### Current diagnostic baseline
 

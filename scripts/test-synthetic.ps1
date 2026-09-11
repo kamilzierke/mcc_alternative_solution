@@ -51,3 +51,8 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) {
     throw 'Synthetic UART frame buffer tests failed.'
 }
+
+& .\tests\test_mcc_bq_evidence_parser.ps1
+if ($LASTEXITCODE -ne 0) {
+    throw 'Synthetic BQ evidence parser tests failed.'
+}
